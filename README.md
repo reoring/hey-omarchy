@@ -54,10 +54,17 @@ From this repo directory:
 bash ./apply.sh
 ```
 
+Preflight (no changes):
+
+```sh
+bash ./apply.sh --check
+```
+
 Re-running is safe: unchanged files are detected and skipped.
 
 Options:
 
+- `--check` Print environment/repo checks and exit
 - `--dry-run` Print planned actions only
 - `--no-waybar` Skip Waybar config/scripts
 - `--with-shaders` Symlink `~/.config/hypr/shaders` from `/usr/share/aether/shaders`
@@ -83,6 +90,18 @@ After applying:
 ## Rollback
 
 Before overwriting, the script creates a backup next to the target file as `*.bak.YYYYmmdd-HHMMSS`.
+
+To restore the latest backups for the files managed by this repo:
+
+```sh
+bash ./rollback.sh
+```
+
+Dry-run:
+
+```sh
+bash ./rollback.sh --dry-run
+```
 
 ## License
 
