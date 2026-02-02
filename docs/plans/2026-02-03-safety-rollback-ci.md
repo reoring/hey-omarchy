@@ -6,16 +6,16 @@
 
 **Architecture:** Keep `apply.sh` as the single entry point for applying files from `home/` into `$HOME`. Add a new `rollback.sh` that restores the latest `*.bak.YYYYmmdd-HHMMSS` backups created by `apply.sh` for the files this repo manages. Add GitHub Actions CI to run shell linting and a small bash test suite in a hermetic temp `$HOME` with stubbed external commands.
 
-**Tech Stack:** bash, python (3.x), GitHub Actions, shellcheck, bats-core
+**Tech Stack:** bash, python (3.x), GitHub Actions, shellcheck
 
 ---
 
-### Task 1: Add a minimal test harness (bats)
+### Task 1: Add a minimal test harness (bash)
 
 **Files:**
-- Create: `tests/bats/apply_check.bats`
-- Create: `tests/bats/rollback.bats`
-- Create: `tests/bats/test_helper.bash`
+- Create: `tests/run.sh`
+- Create: `tests/test_apply_check.sh`
+- Create: `tests/test_rollback.sh`
 
 **Step 1: Add a failing test for `apply.sh --check`**
 
@@ -26,18 +26,18 @@
 }
 ```
 
-**Step 2: Run bats to verify RED**
+**Step 2: Run tests to verify RED**
 
-Run: `bats tests/bats/apply_check.bats`
+Run: `bash tests/test_apply_check.sh`
 Expected: FAIL because `--check` is not implemented yet.
 
 **Step 3: Add a failing test for rollback restoring a backup**
 
 Create a temp `$HOME`, create an existing target file, run `apply.sh` to generate a backup, then run `rollback.sh` and assert the original content is restored.
 
-**Step 4: Run bats to verify RED**
+**Step 4: Run tests to verify RED**
 
-Run: `bats tests/bats/rollback.bats`
+Run: `bash tests/test_rollback.sh`
 Expected: FAIL because `rollback.sh` does not exist yet.
 
 **Step 5: Commit tests (still failing)**
@@ -45,8 +45,8 @@ Expected: FAIL because `rollback.sh` does not exist yet.
 Run:
 
 ```bash
-git add tests/bats
-git commit -m "test: add failing bats coverage for check/rollback"
+git add tests
+git commit -m "test: add basic check/rollback tests"
 ```
 
 ---
@@ -55,7 +55,7 @@ git commit -m "test: add failing bats coverage for check/rollback"
 
 **Files:**
 - Modify: `apply.sh`
-- Test: `tests/bats/apply_check.bats`
+- Test: `tests/test_apply_check.sh`
 
 **Step 1: Implement minimal `--check` CLI parsing**
 
@@ -81,15 +81,15 @@ Exit code:
 - Do not install files
 - Do not call `hyprctl reload` or `systemctl`
 
-**Step 4: Run bats to verify GREEN**
+**Step 4: Run tests to verify GREEN**
 
-Run: `bats tests/bats/apply_check.bats`
+Run: `bash tests/test_apply_check.sh`
 Expected: PASS.
 
 **Step 5: Commit**
 
 ```bash
-git add apply.sh tests/bats/apply_check.bats
+git add apply.sh tests/test_apply_check.sh
 git commit -m "feat: add apply.sh preflight check"
 ```
 
@@ -99,7 +99,7 @@ git commit -m "feat: add apply.sh preflight check"
 
 **Files:**
 - Create: `rollback.sh`
-- Test: `tests/bats/rollback.bats`
+- Test: `tests/test_rollback.sh`
 
 **Behavior:**
 
@@ -128,31 +128,31 @@ Use the same destination paths as `apply.sh` installs:
 - `~/.config/systemd/user/lid-nosuspend.service`
 - `~/.config/waybar/*` and `~/.local/bin/waybar-*`
 
-**Step 4: Run bats to verify GREEN**
+**Step 4: Run tests to verify GREEN**
 
-Run: `bats tests/bats/rollback.bats`
+Run: `bash tests/test_rollback.sh`
 Expected: PASS.
 
 **Step 5: Commit**
 
 ```bash
-git add rollback.sh tests/bats/rollback.bats
+git add rollback.sh tests/test_rollback.sh
 git commit -m "feat: add rollback helper script"
 ```
 
 ---
 
-### Task 4: Add CI (shellcheck + bats)
+### Task 4: Add CI (shellcheck + tests)
 
 **Files:**
 - Create: `.github/workflows/ci.yml`
 
 **Step 1: Add workflow that runs on push + PR**
 
-- Install dependencies (`shellcheck`, `bats`, `jq`)
+- Install dependencies (`shellcheck`)
 - Run `bash -n` on bash scripts
 - Run `shellcheck` on `apply.sh`, `rollback.sh`, and `home/.local/bin/*`
-- Run bats tests
+- Run tests (`bash tests/run.sh`)
 
 **Step 2: Fix shellcheck warnings until CI is clean**
 
@@ -163,7 +163,7 @@ git commit -m "feat: add rollback helper script"
 
 ```bash
 git add .github/workflows/ci.yml
-git commit -m "ci: add shellcheck and bats"
+git commit -m "ci: add shellcheck and tests"
 ```
 
 ---
@@ -193,6 +193,6 @@ git commit -m "docs: document check and rollback"
 Run locally:
 
 - `bash -n apply.sh rollback.sh`
-- `bats tests/bats`
+- `bash tests/run.sh`
 
 Confirm CI workflow file is present and targets the correct script paths.
