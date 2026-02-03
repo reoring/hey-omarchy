@@ -1,4 +1,4 @@
-# omarchy-reoring-taisyo
+# Hey Omarchy-! / へい、おまち〜!
 
 reoring's opinionated Omarchy (Hyprland) customizations, packaged as a small bundle you can apply on top of a standard Omarchy setup.
 
