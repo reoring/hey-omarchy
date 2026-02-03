@@ -49,10 +49,10 @@ Tip: Press `Super+I` to open Omarchy's keybinding menu (`omarchy-menu-keybinding
 This setup treats one display as the "main" monitor:
 
 - `AltGr+QWERTASDFG` always targets workspaces `1..10` on the current main monitor.
-- `AltGr+Z/X/C/V/B` targets "parking" workspaces on the non-main monitor when an external display is connected:
-  - `Z=99`, `X=98`, `C=97`, `V=96`, `B=95`
-  - If there is no second monitor, these fall back to `11..15`.
-- `AltGr+1..0` targets workspaces `16..25` on the main monitor.
+- `AltGr+YUIOPHJKL;` targets workspaces `16..25` on the main monitor.
+- `AltGr+1..0` targets "parking" workspaces on the non-main monitor when an external display is connected:
+  - `1=99` .. `0=90`
+  - If there is no second monitor, these fall back to `11..20`.
 
 Switch which monitor is considered "main" with `Super+Ctrl+M`.
 
@@ -62,8 +62,9 @@ Switch which monitor is considered "main" with `Super+Ctrl+M`.
 | --- | --- |
 | `AltGr+Q/W/E/R/T` | Go to workspace `1/2/3/4/5` (main) |
 | `AltGr+A/S/D/F/G` | Go to workspace `6/7/8/9/10` (main) |
-| `AltGr+Z/X/C/V/B` | Go to parking workspace `99/98/97/96/95` (fallback `11/12/13/14/15`) |
-| `AltGr+1..0` | Go to workspace `16..25` (main) |
+| `AltGr+Y/U/I/O/P` | Go to workspace `16/17/18/19/20` (main) |
+| `AltGr+H/J/K/L/;` | Go to workspace `21/22/23/24/25` (main) |
+| `AltGr+1..0` | Go to parking workspace `99..90` (fallback `11..20`) |
 
 ### Move active window
 
