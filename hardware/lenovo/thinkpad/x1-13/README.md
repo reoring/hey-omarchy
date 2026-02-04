@@ -77,3 +77,18 @@ may need to reconnect (depending on how WWAN is managed on the system).
 ```sh
 bash hardware/lenovo/thinkpad/x1-13/setup-suspend-mhi-wwan-hook.sh uninstall
 ```
+
+## 3D (OpenGL/Vulkan) packages
+
+Install Intel Mesa + Vulkan packages (and lib32 variants if multilib is enabled):
+
+```sh
+bash hardware/lenovo/thinkpad/x1-13/setup-3d-packages.sh install
+```
+
+Verify:
+
+```sh
+glxinfo -B
+vulkaninfo --summary
+```
