@@ -49,6 +49,7 @@
 この設定は、どちらか一方のディスプレイを "main monitor" として扱います。
 
 - `AltGr+QWERTASDFG` は、常に main monitor 側のワークスペース `1..10` を対象にします。
+- `AltGr+ZXCVB` は、main monitor 側のワークスペース `11..15` を対象にします。
 - `AltGr+YUIOPHJKL;` は、main monitor 側のワークスペース `16..25` を対象にします。
 - `AltGr+1..0` は、外部モニター接続時に "parking" 用ワークスペースを non-main 側に表示します。
   - `1=99` .. `0=90`
@@ -62,6 +63,7 @@ main monitor の切替は `Super+Ctrl+M` です。
 | --- | --- |
 | `AltGr+Q/W/E/R/T` | ワークスペース `1/2/3/4/5`（main） |
 | `AltGr+A/S/D/F/G` | ワークスペース `6/7/8/9/10`（main） |
+| `AltGr+Z/X/C/V/B` | ワークスペース `11/12/13/14/15`（main） |
 | `AltGr+Y/U/I/O/P` | ワークスペース `16/17/18/19/20`（main） |
 | `AltGr+H/J/K/L/;` | ワークスペース `21/22/23/24/25`（main） |
 | `AltGr+1..0` | parking `99..90`（フォールバック `11..20`） |

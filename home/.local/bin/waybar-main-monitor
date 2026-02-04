@@ -45,8 +45,10 @@ tooltip=$(cat <<EOF
 Main monitor: ${main_monitor:-unknown} (${role})
 
 Click: toggle main (Super+Ctrl+M)
-AltGr+QWERTASDFG: main workspaces
-AltGr+Z/X/C/V/B: parking (when external connected)
+AltGr+QWERTASDFG: main workspaces (1-10)
+AltGr+ZXCVB: main workspaces (11-15)
+AltGr+YUIOPHJKL;: main workspaces (16-25)
+AltGr+1..0: parking (when external connected)
 EOF
 )
 
