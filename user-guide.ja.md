@@ -57,6 +57,13 @@
 
 main monitor の切替は `Super+Ctrl+M` です。
 
+ヒント（Waybar）: このリポジトリの Waybar 設定を使っている場合、"main monitor" モジュールはクリック操作に対応しています。
+
+- 左クリック: main monitor 切替
+- 右クリック: 外部モニター位置を設定（left/right/up/down）
+
+ターミナルから `hypr-monitor-position menu` または `hypr-monitor-position left|right|up|down` を実行してもOKです。
+
 ### ワークスペースに移動
 
 | キー | 動作 |

@@ -17,7 +17,7 @@ Highlights:
 
 - AltGr workspace workflow with a "main monitor" concept + parking workspaces for the other display
 - Vim-style focus movement (`Super+H/J/K/L`) and small `hypr-*` adjust/toggle scripts (opacity/blur/gaps/scale/refresh/nightlight, etc.)
-- Waybar custom modules for "main monitor" and lid-close suspend state (clickable toggles)
+- Waybar custom modules for "main monitor" (toggle + external position menu) and lid-close suspend state (clickable toggles)
 - Hardware-aware installs:
   - `monitors.conf` is installed only when `DP-4` is detected (or `--force-monitors`)
   - `envs.conf` is installed only when NVIDIA is detected (or `--force-nvidia-env`) and `apply.sh` ensures `~/.config/hypr/hyprland.conf` sources it
@@ -43,6 +43,7 @@ Highlights:
   - `~/.config/systemd/user/app-org.fcitx.Fcitx5@autostart.service.d/override.conf` (fix: make `fcitx5-cskk` find `libcskk` when using `cskk-git`)
 - Scripts
   - `~/.local/bin/hypr-ws` (main/park workspace routing)
+  - `~/.local/bin/hypr-monitor-position` (set external monitor position: left/right/up/down)
   - `~/.local/bin/hypr-*-adjust` / `hypr-*-toggle` (opacity/blur/gaps/scale/refresh/main-monitor/internal-display/lid)
 
 Notes:
@@ -83,7 +84,7 @@ Options:
 ## Requirements / assumptions
 
 - Omarchy + Hyprland setup (these files/scripts call Omarchy helpers like `omarchy-launch-*`)
-- Tools commonly available on Omarchy systems: `bash`, `install`, `python` (3.x), `hyprctl`, `jq`, `systemctl --user`, `notify-send`
+- Tools commonly available on Omarchy systems: `bash`, `install`, `python` (3.x), `hyprctl`, `jq`, `systemctl --user`, `notify-send`, `walker` (or `fzf`)
 - `yay` (used by default to install fcitx5-related packages; skip with `--skip-packages`)
 - Waybar (only if you install Waybar config)
 

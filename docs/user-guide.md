@@ -57,6 +57,13 @@ This setup treats one display as the "main" monitor:
 
 Switch which monitor is considered "main" with `Super+Ctrl+M`.
 
+Tip (Waybar): if you install this repo's Waybar config, the "main monitor" module is clickable:
+
+- Left click: toggle main monitor
+- Right click: set external monitor position (left/right/up/down)
+
+You can also run `hypr-monitor-position menu` or `hypr-monitor-position left|right|up|down`.
+
 ### Switch workspace
 
 | Keys | Action |

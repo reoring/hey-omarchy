@@ -15,7 +15,7 @@ Omarchy (Hyprland) の標準設定に、reoring のカスタム設定/スクリ�
 
 - AltGr を使ったワークスペース運用（"main monitor" 概念 + もう一方に parking ワークスペース）
 - vim 風フォーカス移動（`Super+H/J/K/L`）と、`hypr-*` の各種調整/トグル（opacity/blur/gaps/scale/refresh/nightlight など）
-- Waybar に "main monitor" / ふた閉じサスペンド状態を表示（クリックでトグル）
+- Waybar に "main monitor" / ふた閉じサスペンド状態を表示（クリックでトグル、外部モニター位置メニューあり）
 - ハードウェア依存の設定を必要時のみ適用:
   - `monitors.conf` は `DP-4` を検出したときだけ適用（または `--force-monitors`）
   - `envs.conf` は NVIDIA を検出したときだけ適用（または `--force-nvidia-env`）。さらに `apply.sh` が `~/.config/hypr/hyprland.conf` に source 行を追加します
@@ -41,6 +41,7 @@ Omarchy (Hyprland) の標準設定に、reoring のカスタム設定/スクリ�
   - `~/.config/systemd/user/app-org.fcitx.Fcitx5@autostart.service.d/override.conf`（`cskk-git` 利用時に `fcitx5-cskk` が `libcskk` を見つけられるようにする）
 - スクリプト
   - `~/.local/bin/hypr-ws`（main/park 概念でワークスペース移動）
+  - `~/.local/bin/hypr-monitor-position`（外部モニター位置を設定: left/right/up/down）
   - `~/.local/bin/hypr-*-adjust` / `hypr-*-toggle`（opacity/blur/gaps/scale/refresh/main-monitor/internal-display/lid）
 
 補足:
@@ -81,7 +82,7 @@ bash ./apply.sh --check
 ## 前提 / 依存
 
 - Omarchy + Hyprland 環境（`omarchy-launch-*` など Omarchy の helper を呼びます）
-- よく使うコマンド: `bash`, `install`, `python`（3系）, `hyprctl`, `jq`, `systemctl --user`, `notify-send`
+- よく使うコマンド: `bash`, `install`, `python`（3系）, `hyprctl`, `jq`, `systemctl --user`, `notify-send`, `walker`（または `fzf`）
 - `yay`（デフォルトで fcitx5 関連パッケージをインストールします。不要なら `--skip-packages`）
 - Waybar（Waybar 関連を適用する場合）
 
