@@ -72,6 +72,57 @@ journalctl -b -t mhi-sleep-hook --no-pager
 WWAN will generally become usable again after resume, but the cellular data session
 may need to reconnect (depending on how WWAN is managed on the system).
 
+## WWAN Data (Docomo SIM)
+
+This directory includes a setup script that configures WWAN using ModemManager +
+NetworkManager, while leaving Wi-Fi/Ethernet to systemd-networkd/iwd.
+
+Troubleshooting notes (what we actually hit on RM520N-GL) are in:
+
+- hardware/lenovo/thinkpad/x1-13/WWAN.md
+
+Install:
+
+```sh
+bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh install
+```
+
+Change APN (example):
+
+```sh
+bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh install --apn mopera.net --con-name docomo-mopera
+```
+
+Bring it up/down:
+
+```sh
+nmcli connection up docomo
+nmcli connection down docomo
+```
+
+Auto-reconnect after resume:
+
+- Enabled by default by `setup-wwan-docomo.sh install`.
+- To disable (manual connect only):
+
+```sh
+sudo nmcli connection modify docomo connection.autoconnect no
+```
+
+If ModemManager logs say "software radio switch is OFF", run:
+
+```sh
+bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh enable
+```
+
+If it still won't connect, force direct MBIM radio enable:
+
+```sh
+bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh enable --wait 60 --direct-mbim
+```
+
+If the modem is not detected after install, reboot once (firmware load).
+
 ## Uninstall
 
 ```sh

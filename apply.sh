@@ -103,7 +103,10 @@ preflight() {
     .local/bin/waybar-main-monitor \
     .local/bin/waybar-lid-suspend \
     .local/bin/waybar-wwan \
-    .local/bin/wwan-menu
+    .local/bin/wwan-menu \
+    .local/bin/waybar-tailscale \
+    .local/bin/waybar-tailscale-toggle \
+    .local/bin/waybar-tailscale-peers
   do
     if [[ -f "$SRC_HOME/$f" ]]; then
       log "ok: $f"
@@ -410,6 +413,9 @@ else
   install_file "$SRC_HOME/.local/bin/waybar-lid-suspend" "$HOME/.local/bin/waybar-lid-suspend" 0755
   install_file "$SRC_HOME/.local/bin/waybar-wwan" "$HOME/.local/bin/waybar-wwan" 0755
   install_file "$SRC_HOME/.local/bin/wwan-menu" "$HOME/.local/bin/wwan-menu" 0755
+  install_file "$SRC_HOME/.local/bin/waybar-tailscale" "$HOME/.local/bin/waybar-tailscale" 0755
+  install_file "$SRC_HOME/.local/bin/waybar-tailscale-toggle" "$HOME/.local/bin/waybar-tailscale-toggle" 0755
+  install_file "$SRC_HOME/.local/bin/waybar-tailscale-peers" "$HOME/.local/bin/waybar-tailscale-peers" 0755
   install_file "$SRC_HOME/.config/waybar/config.jsonc" "$HOME/.config/waybar/config.jsonc" 0644
   install_file "$SRC_HOME/.config/waybar/style.css" "$HOME/.config/waybar/style.css" 0644
 

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Get tailscale status
+status_json=$(tailscale status --json 2>/dev/null || echo '{}')
+
+backend_state=$(echo "$status_json" | jq -r '.BackendState // "NoState"')
+self_name=$(echo "$status_json" | jq -r '.Self.HostName // "unknown"')
+self_ip=$(echo "$status_json" | jq -r '.Self.TailscaleIPs[0] // "N/A"')
+online_peers=$(echo "$status_json" | jq '[.Peer // {} | to_entries[] | select(.value.Online == true)] | length')
+
+if [[ "$backend_state" == "Running" ]]; then
+  icon="󰒍"
+  klass="connected"
+  tooltip="Tailscale: Connected
+Host: ${self_name}
+IP: ${self_ip}
+Online peers: ${online_peers}
+
+Click: disconnect
+Right click: show peers"
+elif [[ "$backend_state" == "Stopped" ]]; then
+  icon="󰒎"
+  klass="disconnected"
+  tooltip="Tailscale: Disconnected
+
+Click: connect"
+elif [[ "$backend_state" == "NeedsLogin" ]]; then
+  icon="󰒎"
+  klass="needs-login"
+  tooltip="Tailscale: Needs login
+
+Click: login"
+else
+  icon="󰒎"
+  klass="unknown"
+  tooltip="Tailscale: ${backend_state}"
+fi
+
+jq -nc --arg text "$icon" --arg tooltip "$tooltip" --arg class "$klass" \
+  '{text: $text, tooltip: $tooltip, class: $class}'

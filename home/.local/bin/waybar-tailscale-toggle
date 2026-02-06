@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+backend_state=$(tailscale status --json 2>/dev/null | jq -r '.BackendState // "NoState"')
+
+case "$backend_state" in
+  Running)
+    tailscale down
+    ;;
+  Stopped)
+    tailscale up
+    ;;
+  NeedsLogin)
+    tailscale login
+    ;;
+  *)
+    notify-send "Tailscale" "Unknown state: $backend_state"
+    ;;
+esac
+
+sleep 1
+pkill -RTMIN+12 waybar

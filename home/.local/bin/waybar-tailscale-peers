@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+status=$(tailscale status 2>/dev/null || echo "Failed to get status")
+
+notify-send -t 10000 "Tailscale Peers" "$status"
