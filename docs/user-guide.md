@@ -91,7 +91,7 @@ Add `Shift` to the workspace keys:
 | `Super+Alt+-` / `Super+Alt+=` | Active window opacity down/up |
 | `Super+Alt+Shift+-` / `Super+Alt+Shift+=` | Global blur down/up |
 | `Super+Shift+;` / `Super+Shift+'` | Workspace gaps down/up |
-| `Super+Shift+Ctrl+-` / `Super+Shift+Ctrl+=` | Monitor scale down/up (focused monitor) |
+| `Super+Shift+Ctrl+-` / `Super+Shift+Ctrl+=` | External monitor scale down/up |
 | `Super+Ctrl+R` | Toggle refresh rate (60/120 when available) |
 | `Super+Ctrl+Y` | Toggle Waybar |
 | `Super+Ctrl+M` | Toggle main monitor + consolidate workspaces |

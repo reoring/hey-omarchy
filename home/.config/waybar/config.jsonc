@@ -17,6 +17,7 @@
     "custom/main-monitor",
     "custom/lid",
     "custom/keyboard-clean",
+    "custom/cursor-invisible",
     "battery"
   ],
   "hyprland/workspaces": {
@@ -85,6 +86,14 @@
     "on-click": "$HOME/.local/bin/hypr-keyboard-clean-toggle toggle",
     "on-click-right": "$HOME/.local/bin/hypr-keyboard-clean-toggle off",
     "signal": 13,
+    "interval": 3600,
+    "return-type": "json"
+  },
+  "custom/cursor-invisible": {
+    "exec": "$HOME/.local/bin/waybar-cursor-invisible",
+    "on-click": "$HOME/.local/bin/hypr-cursor-invisible-toggle toggle",
+    "on-click-right": "$HOME/.local/bin/hypr-cursor-invisible-toggle off",
+    "signal": 14,
     "interval": 3600,
     "return-type": "json"
   },

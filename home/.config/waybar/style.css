@@ -38,6 +38,7 @@
 #custom-main-monitor,
 #custom-lid,
 #custom-keyboard-clean,
+#custom-cursor-invisible,
 #custom-update {
   min-width: 12px;
   margin: 0 7.5px;
@@ -119,4 +120,12 @@ tooltip {
 
 #custom-keyboard-clean.active {
   color: #a55555;
+}
+
+#custom-cursor-invisible.active {
+  color: #a55555;
+}
+
+#custom-cursor-invisible.unknown {
+  opacity: 0.55;
 }

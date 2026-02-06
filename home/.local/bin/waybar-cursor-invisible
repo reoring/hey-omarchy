@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+read_mode() {
+  local output int_value set_value
+
+  if ! command -v hyprctl >/dev/null 2>&1; then
+    printf '%s' "unknown"
+    return 1
+  fi
+
+  if ! output="$(hyprctl getoption cursor:invisible 2>/dev/null)"; then
+    printf '%s' "unknown"
+    return 1
+  fi
+
+  int_value="$(printf '%s\n' "$output" | sed -n 's/^int:[[:space:]]*//p' | head -n 1)"
+  case "$int_value" in
+    1)
+      printf '%s' "on"
+      return 0
+      ;;
+    0)
+      printf '%s' "off"
+      return 0
+      ;;
+  esac
+
+  set_value="$(printf '%s\n' "$output" | sed -n 's/^set:[[:space:]]*//p' | head -n 1)"
+  case "$set_value" in
+    true|1)
+      printf '%s' "on"
+      return 0
+      ;;
+    false|0)
+      printf '%s' "off"
+      return 0
+      ;;
+    *)
+      printf '%s' "unknown"
+      return 1
+      ;;
+  esac
+}
+
+mode="$(read_mode 2>/dev/null || true)"
+
+if [[ "$mode" == "on" ]]; then
+  echo '{"text":"󰍽","tooltip":"Pointer: HIDDEN\nClick: show pointer\nRight click: force visible","class":"active"}'
+elif [[ "$mode" == "off" ]]; then
+  echo '{"text":"󰍽","tooltip":"Pointer: VISIBLE\nClick: hide pointer","class":"inactive"}'
+else
+  echo '{"text":"󰍽","tooltip":"Pointer: unknown (Hyprland unavailable?)\nClick: toggle pointer visibility","class":"unknown"}'
+fi

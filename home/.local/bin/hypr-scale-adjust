@@ -4,9 +4,142 @@ set -euo pipefail
 MIN=${MIN:-1.0}
 MAX=${MAX:-4.0}
 ALLOWED_DENOMS=${ALLOWED_DENOMS:-"1,2,3,4,5,8,15"}
+INTERNAL_RE=${INTERNAL_MONITOR_RE:-'^(eDP|LVDS|DSI)-'}
+POSITION_STATE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/hypr-external-position"
 
 usage() {
-  echo "Usage: $(basename "$0") up|down [monitor]" >&2
+  echo "Usage: $(basename "$0") up|down [focused|external|internal|monitor-name]" >&2
+}
+
+resolve_monitor() {
+  local monitors_json="$1"
+  local target="$2"
+  local monitor=""
+
+  case "$target" in
+    ""|focused)
+      monitor=$(hyprctl activeworkspace -j 2>/dev/null | jq -r '.monitor // empty' 2>/dev/null || true)
+      if [[ -z "$monitor" ]]; then
+        monitor=$(echo "$monitors_json" | jq -r '.[] | select(.focused==true and .disabled != true) | .name' | head -n 1)
+      fi
+      ;;
+    external)
+      monitor=$(echo "$monitors_json" | jq -r --arg re "$INTERNAL_RE" '[.[] | select((.name | test($re) | not) and (.disabled != true)) | .name][0] // empty')
+      ;;
+    internal)
+      monitor=$(echo "$monitors_json" | jq -r --arg re "$INTERNAL_RE" '[.[] | select((.name | test($re)) and (.disabled != true)) | .name][0] // empty')
+      ;;
+    *)
+      monitor="$target"
+      ;;
+  esac
+
+  printf '%s' "$monitor"
+}
+
+read_external_position() {
+  local dir=""
+  if [[ -f "$POSITION_STATE_FILE" ]]; then
+    dir=$(cat "$POSITION_STATE_FILE" 2>/dev/null || true)
+  fi
+
+  case "$dir" in
+    left|right|up|down) printf '%s' "$dir" ;;
+    *) ;;
+  esac
+  return 0
+}
+
+infer_external_position() {
+  local monitors_json="$1"
+  local internal="$2"
+  local external="$3"
+
+  INTERNAL="$internal" EXTERNAL="$external" python - <<'PY' <<<"$monitors_json" 2>/dev/null || true
+import json
+import os
+import sys
+
+internal = os.environ.get("INTERNAL", "")
+external = os.environ.get("EXTERNAL", "")
+if not internal or not external:
+    raise SystemExit(0)
+
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    raise SystemExit(0)
+
+def pos(name: str):
+    for m in data:
+        if m.get("name") == name and m.get("disabled") is not True:
+            try:
+                return float(m.get("x", 0.0)), float(m.get("y", 0.0))
+            except Exception:
+                return 0.0, 0.0
+    return None
+
+i = pos(internal)
+e = pos(external)
+if not i or not e:
+    raise SystemExit(0)
+
+ix, iy = i
+ex, ey = e
+dx = ex - ix
+dy = ey - iy
+if abs(dx) >= abs(dy):
+    print("right" if dx >= 0 else "left")
+else:
+    print("down" if dy >= 0 else "up")
+PY
+
+  return 0
+}
+
+maybe_relayout_pair() {
+  local monitors_json_before="$1"
+  local changed_monitor="$2"
+
+  # Only handle the common 2-monitor case (1 internal + 1 external).
+  local internal_count external_count internal external
+  internal_count=$(echo "$monitors_json_before" | jq -r --arg re "$INTERNAL_RE" '[.[] | select((.name | test($re)) and (.disabled != true))] | length' 2>/dev/null || true)
+  external_count=$(echo "$monitors_json_before" | jq -r --arg re "$INTERNAL_RE" '[.[] | select((.name | test($re) | not) and (.disabled != true))] | length' 2>/dev/null || true)
+  if [[ "$internal_count" != "1" || "$external_count" != "1" ]]; then
+    return 0
+  fi
+
+  internal=$(echo "$monitors_json_before" | jq -r --arg re "$INTERNAL_RE" '[.[] | select((.name | test($re)) and (.disabled != true)) | .name][0] // empty' 2>/dev/null || true)
+  external=$(echo "$monitors_json_before" | jq -r --arg re "$INTERNAL_RE" '[.[] | select((.name | test($re) | not) and (.disabled != true)) | .name][0] // empty' 2>/dev/null || true)
+  if [[ -z "$internal" || -z "$external" ]]; then
+    return 0
+  fi
+
+  if [[ "$changed_monitor" != "$internal" && "$changed_monitor" != "$external" ]]; then
+    return 0
+  fi
+
+  local dir
+  dir="$(read_external_position)"
+  if [[ -z "$dir" ]]; then
+    dir="$(infer_external_position "$monitors_json_before" "$internal" "$external")"
+  fi
+  case "$dir" in
+    left|right|up|down) ;;
+    *) return 0 ;;
+  esac
+
+  local pos_cmd=""
+  if [[ -x "$HOME/.local/bin/hypr-monitor-position" ]]; then
+    pos_cmd="$HOME/.local/bin/hypr-monitor-position"
+  elif command -v hypr-monitor-position >/dev/null 2>&1; then
+    pos_cmd="hypr-monitor-position"
+  else
+    return 0
+  fi
+
+  HYPR_MONITOR_POSITION_QUIET=1 "$pos_cmd" "$dir" >/dev/null 2>&1 || true
+  return 0
 }
 
 direction="${1:-}"
@@ -17,18 +150,26 @@ esac
 
 monitors_json=$(hyprctl monitors -j)
 
-monitor="${2:-}"
-if [[ -z "$monitor" ]]; then
-  monitor=$(echo "$monitors_json" | jq -r '.[] | select(.focused==true) | .name')
-fi
+target="${2:-focused}"
+monitor="$(resolve_monitor "$monitors_json" "$target")"
 
 if [[ -z "$monitor" || "$monitor" == "null" ]]; then
+  notify-send "Monitor scale" "No monitor found for target: ${target}" -t 1500
   exit 0
 fi
 
-read -r current_refresh width height x y scale < <(
-  echo "$monitors_json" | jq -r --arg m "$monitor" '.[] | select(.name==$m) | "\(.refreshRate) \(.width) \(.height) \(.x) \(.y) \(.scale)"'
-)
+match_count=$(echo "$monitors_json" | jq -r --arg m "$monitor" '[.[] | select(.name==$m and .disabled != true)] | length')
+if [[ "$match_count" != "1" ]]; then
+  notify-send "Monitor scale" "Monitor resolve failed: ${monitor}" -t 1500
+  exit 0
+fi
+
+mode_line=$(echo "$monitors_json" | jq -r --arg m "$monitor" '.[] | select(.name==$m and .disabled != true) | "\(.refreshRate) \(.width) \(.height) \(.x) \(.y) \(.scale)"')
+if [[ -z "$mode_line" || "$mode_line" == "null" ]]; then
+  notify-send "Monitor scale" "Monitor details unavailable: ${monitor}" -t 1500
+  exit 0
+fi
+read -r current_refresh width height x y scale <<<"$mode_line"
 
 if [[ -z "${scale:-}" || "$scale" == "null" ]]; then
   exit 0
@@ -95,6 +236,9 @@ PY
 )
 
 hyprctl keyword monitor "${monitor},${width}x${height}@${current_hz},${x}x${y},${next_scale}" >/dev/null
+
+# Re-apply monitor positions after scaling (Hyprland positions are in logical pixels).
+maybe_relayout_pair "$monitors_json" "$monitor"
 
 new_scale=$(hyprctl monitors -j | jq -r --arg m "$monitor" '.[] | select(.name==$m) | .scale')
 if [[ -z "$new_scale" || "$new_scale" == "null" ]]; then

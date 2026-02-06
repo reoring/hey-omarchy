@@ -91,7 +91,7 @@ main monitor の切替は `Super+Ctrl+M` です。
 | `Super+Alt+-` / `Super+Alt+=` | アクティブウィンドウの透明度を下げる/上げる |
 | `Super+Alt+Shift+-` / `Super+Alt+Shift+=` | 全体のブラーを下げる/上げる |
 | `Super+Shift+;` / `Super+Shift+'` | 現在ワークスペースの gaps を下げる/上げる |
-| `Super+Shift+Ctrl+-` / `Super+Shift+Ctrl+=` | モニタースケールを下げる/上げる（フォーカス中のモニター） |
+| `Super+Shift+Ctrl+-` / `Super+Shift+Ctrl+=` | 外部モニターのスケールを下げる/上げる |
 | `Super+Ctrl+R` | リフレッシュレート切替（利用可能なら 60/120） |
 | `Super+Ctrl+Y` | Waybar 表示トグル |
 | `Super+Ctrl+M` | main monitor 切替 + ワークスペース再配置 |

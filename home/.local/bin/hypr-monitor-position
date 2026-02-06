@@ -16,6 +16,11 @@ EOF
 notify() {
   local title="$1"
   local body="$2"
+
+  if [[ "${HYPR_MONITOR_POSITION_QUIET:-0}" == "1" ]]; then
+    return 0
+  fi
+
   if command -v notify-send >/dev/null 2>&1; then
     notify-send "$title" "$body" -t 1500 >/dev/null 2>&1 || true
   fi

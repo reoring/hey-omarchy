@@ -2,6 +2,7 @@
 set -euo pipefail
 
 WAYBAR_SIGNAL="${WAYBAR_WWAN_SIGNAL:-11}"
+WWAN_SETUP_REL="hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh"
 
 nm_unescape() {
   local v="${1//\\:/:}"
@@ -75,6 +76,32 @@ profile=""
 state=""
 active_conn=""
 connected=0
+setup_script=""
+
+find_setup_script() {
+  local path=""
+  local -a candidates=()
+
+  if [[ -n "${WWAN_SETUP_SCRIPT:-}" ]]; then
+    candidates+=("$WWAN_SETUP_SCRIPT")
+  fi
+
+  candidates+=(
+    "$HOME/hey-omarchy/$WWAN_SETUP_REL"
+    "$HOME/.local/share/omarchy/$WWAN_SETUP_REL"
+    "$HOME/.config/omarchy/$WWAN_SETUP_REL"
+    "$PWD/$WWAN_SETUP_REL"
+  )
+
+  for path in "${candidates[@]}"; do
+    if [[ -f "$path" ]]; then
+      printf '%s' "$path"
+      return 0
+    fi
+  done
+
+  return 1
+}
 
 read_state() {
   device="$(first_gsm_device || true)"
@@ -116,9 +143,77 @@ connect_wwan() {
     fi
   fi
 
-  notify "WWAN" "Connect failed: ${out:-unknown error}"
+  if [[ -n "$setup_script" ]]; then
+    notify "WWAN" "Connect failed. Trying direct MBIM..."
+  else
+    notify "WWAN" "Connect failed: ${out:-unknown error}"
+  fi
   refresh_waybar
   return 1
+}
+
+connect_wwan_direct_mbim() {
+  local target="${profile:-}"
+  local out=""
+  local run_cmd=""
+  local q_setup=""
+  local q_target=""
+  local can_run_direct=0
+
+  if [[ -z "$setup_script" ]]; then
+    notify "WWAN" "Direct MBIM setup script not found"
+    return 1
+  fi
+
+  if [[ -z "$target" ]]; then
+    notify "WWAN" "No GSM profile found"
+    return 1
+  fi
+
+  if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+    can_run_direct=1
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+    can_run_direct=1
+  fi
+
+  if (( can_run_direct )); then
+    if out=$(bash "$setup_script" enable --con-name "$target" --wait 60 --direct-mbim 2>&1); then
+      notify "WWAN" "Connected (direct MBIM): $target"
+      refresh_waybar
+      return 0
+    fi
+    notify "WWAN" "Direct MBIM failed: ${out:-unknown error}"
+    refresh_waybar
+    return 1
+  fi
+
+  if ! command -v xdg-terminal-exec >/dev/null 2>&1; then
+    notify "WWAN" "sudo password is required (no terminal launcher found)"
+    return 1
+  fi
+
+  printf -v q_setup '%q' "$setup_script"
+  printf -v q_target '%q' "$target"
+  run_cmd="bash $q_setup enable --con-name $q_target --wait 60 --direct-mbim"
+
+  if xdg-terminal-exec --title="WWAN connect (direct MBIM)" --hold bash -lc "$run_cmd"; then
+    notify "WWAN" "Opened terminal for direct MBIM connection"
+    refresh_waybar
+    return 0
+  fi
+
+  notify "WWAN" "Failed to open terminal for direct MBIM connection"
+  return 1
+}
+
+connect_with_fallback() {
+  if connect_wwan; then
+    return 0
+  fi
+
+  if [[ -n "$setup_script" ]]; then
+    connect_wwan_direct_mbim
+  fi
 }
 
 disconnect_wwan() {
@@ -160,6 +255,9 @@ pick_action() {
     if [[ -n "$profile" ]]; then
       actions+=("Connect")
     fi
+    if [[ -n "$setup_script" && -n "$profile" ]]; then
+      actions+=("Connect (direct MBIM)")
+    fi
   fi
   actions+=("Details")
 
@@ -171,14 +269,17 @@ pick_action() {
     if (( connected )); then
       disconnect_wwan
     else
-      connect_wwan
+      connect_with_fallback
     fi
     return 0
   fi
 
   case "$choice" in
     Connect)
-      connect_wwan
+      connect_with_fallback
+      ;;
+    "Connect (direct MBIM)")
+      connect_wwan_direct_mbim
       ;;
     Disconnect)
       disconnect_wwan
@@ -197,4 +298,5 @@ if ! command -v nmcli >/dev/null 2>&1; then
 fi
 
 read_state
+setup_script="$(find_setup_script || true)"
 pick_action
