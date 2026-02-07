@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+GROUP_NO_EN="${FCITX_GROUP_NO_EN:-Default}"
+GROUP_WITH_EN="${FCITX_GROUP_WITH_EN:-WithEn}"
+DEFAULT_IM="${FCITX_GROUP_DEFAULT_IM:-cskk}"
+
+WAYBAR_FCITX_EN_SIGNAL="${WAYBAR_FCITX_EN_SIGNAL:-16}"
+
+action="${1:-toggle}"
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [toggle|on|off|status]
+
+Switch between fcitx5 input method groups:
+  - ${GROUP_NO_EN}   (cskk only)
+  - ${GROUP_WITH_EN} (cskk + keyboard-us)
+
+Environment overrides:
+  FCITX_GROUP_NO_EN, FCITX_GROUP_WITH_EN, FCITX_GROUP_DEFAULT_IM, WAYBAR_FCITX_EN_SIGNAL
+EOF
+}
+
+if ! command -v fcitx5-remote >/dev/null 2>&1; then
+  echo "ERROR: fcitx5-remote not found" >&2
+  exit 1
+fi
+
+ensure_fcitx_running() {
+  if fcitx5-remote --check >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # Best-effort: try to start the user service if present.
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user start app-org.fcitx.Fcitx5@autostart.service >/dev/null 2>&1 || true
+  fi
+
+  fcitx5-remote --check >/dev/null 2>&1
+}
+
+current_group() {
+  fcitx5-remote --check -q 2>/dev/null
+}
+
+profile_path() {
+  printf '%s' "${FCITX_PROFILE_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/fcitx5/profile}"
+}
+
+group_index_by_name() {
+  local name="$1"
+  local profile
+  profile="$(profile_path)"
+
+  [[ -f "$profile" ]] || return 1
+
+  local in_order=0
+  local line
+  while IFS= read -r line; do
+    if [[ "$line" == "[GroupOrder]" ]]; then
+      in_order=1
+      continue
+    fi
+    if (( in_order )); then
+      if [[ "$line" == \[*\] ]]; then
+        break
+      fi
+      if [[ "$line" =~ ^([0-9]+)=(.*)$ ]]; then
+        local idx="${BASH_REMATCH[1]}"
+        local gname="${BASH_REMATCH[2]}"
+        if [[ "$gname" == "$name" ]]; then
+          printf '%s' "$idx"
+          return 0
+        fi
+      fi
+    fi
+  done <"$profile"
+
+  return 1
+}
+
+set_group() {
+  local target_name="$1"
+
+  # fcitx5-remote -g can silently no-op on invalid values. Try index (from
+  # profile) and/or name, then verify by reading back the active group.
+  local idx=""
+  idx="$(group_index_by_name "$target_name" 2>/dev/null || true)"
+
+  if [[ -n "$idx" ]]; then
+    fcitx5-remote -g "$idx" >/dev/null 2>&1 || true
+  fi
+  if [[ "$(current_group || true)" != "$target_name" ]]; then
+    fcitx5-remote -g "$target_name" >/dev/null 2>&1 || true
+  fi
+
+  if [[ "$(current_group || true)" != "$target_name" ]]; then
+    notify "Failed to switch group: $target_name"
+    echo "ERROR: failed to switch fcitx5 group to: $target_name" >&2
+    echo "hint: ensure the group exists in $(profile_path) (GroupOrder)" >&2
+    return 1
+  fi
+
+  # Keep us in cskk unless explicitly changed elsewhere.
+  fcitx5-remote -s "$DEFAULT_IM" >/dev/null 2>&1 || true
+}
+
+notify() {
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Fcitx5" "$1" -t 1500
+  fi
+}
+
+refresh_waybar() {
+  pkill -RTMIN+"$WAYBAR_FCITX_EN_SIGNAL" waybar >/dev/null 2>&1 || true
+}
+
+if [[ "$action" == "-h" || "$action" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if ! ensure_fcitx_running; then
+  notify "Not running"
+  echo "ERROR: Fcitx5 is not running" >&2
+  exit 1
+fi
+
+case "$action" in
+  status)
+    current_group
+    ;;
+  on|enable)
+    set_group "$GROUP_WITH_EN"
+    notify "EN enabled (group: $GROUP_WITH_EN)"
+    refresh_waybar
+    ;;
+  off|disable)
+    set_group "$GROUP_NO_EN"
+    notify "EN disabled (group: $GROUP_NO_EN)"
+    refresh_waybar
+    ;;
+  toggle|"" )
+    cur="$(current_group || true)"
+    if [[ "$cur" == "$GROUP_WITH_EN" ]]; then
+      set_group "$GROUP_NO_EN"
+      notify "EN disabled (group: $GROUP_NO_EN)"
+    else
+      set_group "$GROUP_WITH_EN"
+      notify "EN enabled (group: $GROUP_WITH_EN)"
+    fi
+    refresh_waybar
+    ;;
+  *)
+    echo "ERROR: unknown action: $action" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

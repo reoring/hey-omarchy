@@ -1,0 +1,319 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+STEP_PCT=${STEP_PCT:-5}
+DEFAULT_DISPLAY=${DEFAULT_DISPLAY:-1}
+NO_NOTIFY=${NO_NOTIFY:-0}
+TIMEOUT_MS=${TIMEOUT_MS:-1200}
+WAYBAR_DDC_BRIGHTNESS_SIGNAL=${WAYBAR_DDC_BRIGHTNESS_SIGNAL:-15}
+OSD_MODE=${OSD_MODE:-0}
+
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  ddc-brightness get [--display N] [--sudo] [--no-notify]
+  ddc-brightness set PCT [--display N] [--sudo] [--no-notify]
+  ddc-brightness up|down [--display N] [--sudo] [--no-notify]
+  ddc-brightness menu [--display N] [--sudo] [--no-notify]
+
+Extra:
+  --osd              Show an on-screen indicator (swayosd-client)
+
+Env:
+  STEP_PCT=5            Step size for up/down (percent)
+  DEFAULT_DISPLAY=1     ddcutil display number
+  NO_NOTIFY=0           Set to 1 to disable notify-send
+  TIMEOUT_MS=1200       notify-send timeout
+  WAYBAR_DDC_BRIGHTNESS_SIGNAL=15  Waybar refresh signal number
+  OSD_MODE=0            Set to 1 to show OSD (swayosd-client)
+
+Notes:
+  - Requires ddcutil and a monitor with DDC/CI enabled.
+  - If you see "No /dev/i2c devices exist", run:
+      sudo modprobe i2c-dev
+  - If you see "Permission denied" on /dev/i2c-*, run:
+      sudo ddcutil install-udev-rules
+    then re-login (or reboot).
+EOF
+}
+
+notify() {
+  if (( NO_NOTIFY )); then
+    return 0
+  fi
+  command -v notify-send >/dev/null 2>&1 || return 0
+  notify-send "DDC brightness" "$1" -t "$TIMEOUT_MS" >/dev/null 2>&1 || true
+}
+
+osd_message() {
+  local msg="$1"
+  if (( ! OSD_MODE )); then
+    return 0
+  fi
+  command -v swayosd-client >/dev/null 2>&1 || return 0
+  swayosd-client --custom-icon=display-brightness-symbolic --custom-message="$msg" >/dev/null 2>&1 || true
+}
+
+osd_progress() {
+  local pct="${1:-}"
+  if (( ! OSD_MODE )); then
+    return 0
+  fi
+  command -v swayosd-client >/dev/null 2>&1 || return 0
+  [[ -n "$pct" ]] || return 0
+  [[ "$pct" =~ ^[0-9]+$ ]] || return 0
+
+  local progress
+  progress=$(PCT="$pct" python - <<'PY'
+import os
+
+pct = int(os.environ.get("PCT", "0"))
+pct = max(0, min(100, pct))
+print(f"{pct/100.0:.4f}")
+PY
+  )
+
+  swayosd-client \
+    --custom-icon=display-brightness-symbolic \
+    --custom-progress="$progress" \
+    --custom-progress-text="${pct}%" \
+    >/dev/null 2>&1 || true
+}
+
+refresh_waybar() {
+  pkill -RTMIN+"$WAYBAR_DDC_BRIGHTNESS_SIGNAL" waybar >/dev/null 2>&1 || true
+}
+
+fail() {
+  printf '%s\n' "$*" >&2
+  notify "$*"
+  osd_message "$*"
+  exit 1
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"
+}
+
+cmd=""
+pct=""
+display=""
+sudo_mode=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d|--display)
+      display="${2:-}"
+      shift 2
+      ;;
+    --sudo)
+      sudo_mode=1
+      shift
+      ;;
+    --no-notify)
+      NO_NOTIFY=1
+      shift
+      ;;
+    --osd)
+      OSD_MODE=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      if [[ -z "$cmd" ]]; then
+        cmd="$1"
+      elif [[ "$cmd" == "set" && -z "$pct" ]]; then
+        pct="$1"
+      else
+        printf '%s\n' "Unexpected argument: $1" >&2
+        usage
+        exit 2
+      fi
+      shift
+      ;;
+  esac
+done
+
+case "$cmd" in
+  get|up|down|set|menu) ;;
+  "") usage; exit 2 ;;
+  *) usage; exit 2 ;;
+esac
+
+if [[ "$cmd" == "set" && -z "$pct" ]]; then
+  usage
+  exit 2
+fi
+
+display=${display:-$DEFAULT_DISPLAY}
+if ! [[ "$display" =~ ^[0-9]+$ ]] || (( display < 1 )); then
+  fail "Invalid display number: ${display}"
+fi
+
+need_cmd python
+need_cmd ddcutil
+
+ddc=(ddcutil --display "$display")
+if (( sudo_mode )); then
+  need_cmd sudo
+  ddc=(sudo ddcutil --display "$display")
+fi
+
+get_cur_max() {
+  local out
+  if ! out=$(${ddc[@]} getvcp 10 2>&1); then
+    if [[ "$out" == *"Permission denied"* && $sudo_mode -eq 0 ]]; then
+      fail "ddcutil permission denied. Try: sudo ddcutil install-udev-rules (then re-login)"
+    fi
+    if [[ "$out" == *"No /dev/i2c devices exist"* || "$out" == *"requires module i2c-dev"* ]]; then
+      fail "No /dev/i2c devices. Try: sudo modprobe i2c-dev"
+    fi
+    if [[ "$out" == *"No displays implementing DDC/CI found"* ]]; then
+      fail "No DDC/CI display detected (external monitor connected?)"
+    fi
+    if [[ "$out" == Invalid\ display* ]]; then
+      fail "DDC/CI unsupported for this display"
+    fi
+    fail "$out"
+  fi
+
+  if [[ "$out" == *"No displays implementing DDC/CI found"* ]]; then
+    fail "No DDC/CI display detected (external monitor connected?)"
+  fi
+  if [[ "$out" == Invalid\ display* ]]; then
+    fail "DDC/CI unsupported for this display"
+  fi
+
+  OUT="$out" python - <<'PY'
+import os
+import re
+
+text = os.environ.get("OUT", "")
+
+m = re.search(r"current\s+value\s*=\s*(\d+)\s*,\s*max\s+value\s*=\s*(\d+)", text, re.IGNORECASE)
+if m:
+    print(f"{m.group(1)} {m.group(2)}")
+    raise SystemExit(0)
+
+nums = [int(x) for x in re.findall(r"\b\d+\b", text)]
+if len(nums) >= 2:
+    cur, maxv = nums[-2], nums[-1]
+    if maxv > 0:
+        print(f"{cur} {maxv}")
+        raise SystemExit(0)
+
+raise SystemExit(2)
+PY
+}
+
+cur_max="$(get_cur_max)"
+read -r cur maxv <<<"$cur_max"
+if ! [[ "${cur:-}" =~ ^[0-9]+$ && "${maxv:-}" =~ ^[0-9]+$ ]] || (( maxv < 1 )); then
+  fail "Invalid brightness values: cur=${cur:-?} max=${maxv:-?}"
+fi
+
+calc_pct() {
+  CUR="$cur" MAX="$maxv" python - <<'PY'
+import os
+
+cur = int(os.environ['CUR'])
+maxv = int(os.environ['MAX'])
+if maxv <= 0:
+    print(0)
+else:
+    print(int(round(cur * 100.0 / maxv)))
+PY
+}
+
+if [[ "$cmd" == "get" ]]; then
+  calc_pct
+  exit 0
+fi
+
+if [[ "$cmd" == "menu" ]]; then
+  current_pct="$(calc_pct 2>/dev/null || true)"
+  if ! [[ "$current_pct" =~ ^[0-9]+$ ]]; then
+    current_pct="?"
+  fi
+
+  placeholder="DDC brightness (display ${display}, current ${current_pct}%)"
+  choice=""
+
+  if command -v walker >/dev/null 2>&1; then
+    choice=$(printf '%s\n' 100 90 80 70 60 50 40 30 20 10 0 | walker --dmenu --placeholder "$placeholder" 2>/dev/null || true)
+  elif command -v fzf >/dev/null 2>&1; then
+    choice=$(printf '%s\n' 100 90 80 70 60 50 40 30 20 10 0 | fzf --prompt='DDC brightness> ' --height=40% --layout=reverse 2>/dev/null || true)
+  else
+    fail "walker or fzf not found (cannot open menu)"
+  fi
+
+  [[ -z "$choice" ]] && exit 0
+  pct="$choice"
+  cmd="set"
+fi
+
+target_val=""
+target_pct=""
+
+if [[ "$cmd" == "set" ]]; then
+  read -r target_val target_pct < <(
+    PCT="$pct" MAX="$maxv" python - <<'PY'
+import os
+
+pct = float(os.environ['PCT'])
+maxv = int(os.environ['MAX'])
+
+pct = max(0.0, min(100.0, pct))
+val = int(round(maxv * pct / 100.0))
+val = max(0, min(maxv, val))
+
+print(f"{val} {int(round(pct))}")
+PY
+  )
+else
+  read -r target_val target_pct < <(
+    CUR="$cur" MAX="$maxv" STEP="$STEP_PCT" DIR="$cmd" python - <<'PY'
+import os
+
+cur = int(os.environ['CUR'])
+maxv = int(os.environ['MAX'])
+step = float(os.environ['STEP'])
+direction = os.environ['DIR']
+
+if maxv <= 0:
+    print(f"{cur} 0")
+    raise SystemExit(0)
+
+pct = cur * 100.0 / maxv
+if direction == 'up':
+    pct += step
+else:
+    pct -= step
+
+pct = max(0.0, min(100.0, pct))
+val = int(round(maxv * pct / 100.0))
+val = max(0, min(maxv, val))
+
+print(f"{val} {int(round(pct))}")
+PY
+  )
+fi
+
+if [[ -z "${target_val:-}" || -z "${target_pct:-}" ]]; then
+  fail "Failed to compute target brightness"
+fi
+
+if ! out=$(${ddc[@]} setvcp 10 "$target_val" 2>&1); then
+  if [[ "$out" == *"Permission denied"* && $sudo_mode -eq 0 ]]; then
+    fail "ddcutil permission denied. Try: sudo ddcutil install-udev-rules (then re-login)"
+  fi
+  fail "$out"
+fi
+
+notify "display ${display}: ${target_pct}%"
+osd_progress "$target_pct"
+refresh_waybar
+printf '%s\n' "$target_pct"

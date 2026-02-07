@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ICON=${WAYBAR_DDC_BRIGHTNESS_ICON:-"󰃠"}
+SHOW_PERCENT=${WAYBAR_DDC_SHOW_PERCENT:-0}
+DISPLAY=${WAYBAR_DDC_DISPLAY:-""}
+STEP_PCT=${STEP_PCT:-5}
+
+ddc_cmd="$HOME/.local/bin/ddc-brightness"
+if [[ ! -x "$ddc_cmd" ]]; then
+  ddc_cmd="$(command -v ddc-brightness 2>/dev/null || true)"
+fi
+
+if [[ -z "${ddc_cmd:-}" ]]; then
+  jq -nc \
+    --arg text "$ICON" \
+    --arg tooltip "DDC brightness: unavailable (ddc-brightness not found)" \
+    --arg class "unavailable" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+  exit 0
+fi
+
+args=()
+if [[ -n "$DISPLAY" ]]; then
+  args+=(--display "$DISPLAY")
+fi
+
+out=""
+status=0
+out="$($ddc_cmd get "${args[@]}" 2>&1)" && status=0 || status=$?
+
+if (( status == 0 )) && [[ "$out" =~ ^[0-9]+$ ]]; then
+  pct="$out"
+
+  text="$ICON"
+  if (( SHOW_PERCENT )); then
+    text="$ICON ${pct}%"
+  fi
+
+  tooltip="DDC brightness: ${pct}%"
+  if [[ -n "$DISPLAY" ]]; then
+    tooltip+=$'\n'"Display: ${DISPLAY}"
+  fi
+  tooltip+=$'\n\n'"Scroll: +/-${STEP_PCT}%"
+  tooltip+=$'\n'"Click: preset menu"
+  tooltip+=$'\n'"Right click: set 100%"
+
+  jq -nc \
+    --arg text "$text" \
+    --arg tooltip "$tooltip" \
+    --arg class "available" \
+    '{text: $text, tooltip: $tooltip, class: $class}'
+  exit 0
+fi
+
+tooltip="DDC brightness: unavailable"
+tooltip+=$'\n'"Is external monitor connected? (Try: ddcutil detect)"
+tooltip+=$'\n\n'"Try: sudo modprobe i2c-dev"
+tooltip+=$'\n'"Try: sudo ddcutil install-udev-rules (then re-login)"
+tooltip+=$'\n\n'"Error: ${out}"
+
+jq -nc \
+  --arg text "$ICON" \
+  --arg tooltip "$tooltip" \
+  --arg class "unavailable" \
+  '{text: $text, tooltip: $tooltip, class: $class}'

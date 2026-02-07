@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+GROUP_NO_EN="${FCITX_GROUP_NO_EN:-Default}"
+GROUP_WITH_EN="${FCITX_GROUP_WITH_EN:-WithEn}"
+
+TOGGLE_HINT="${FCITX_EN_TOGGLE_HINT:-Super+Ctrl+J}"
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo '{"text":"IME","tooltip":"jq not found","class":"unknown"}'
+  exit 0
+fi
+
+if ! command -v fcitx5-remote >/dev/null 2>&1; then
+  jq -nc --arg text "IME" --arg tooltip "fcitx5-remote not found" --arg class "unknown" '{text:$text, tooltip:$tooltip, class:$class}'
+  exit 0
+fi
+
+if ! fcitx5-remote --check >/dev/null 2>&1; then
+  tooltip=$(cat <<EOF
+Fcitx5 is not running
+
+Click: toggle EN group ($TOGGLE_HINT)
+EOF
+)
+  jq -nc --arg text "IME" --arg tooltip "$tooltip" --arg class "unknown" '{text:$text, tooltip:$tooltip, class:$class}'
+  exit 0
+fi
+
+group="$(fcitx5-remote -q 2>/dev/null || true)"
+im="$(fcitx5-remote -n 2>/dev/null || true)"
+state_num="$(fcitx5-remote 2>/dev/null || true)"
+
+case "$state_num" in
+  2) state="active" ;;
+  1) state="inactive" ;;
+  0) state="closed" ;;
+  *) state="unknown" ;;
+esac
+
+text="IME"
+klass="unknown"
+en_desc="unknown"
+
+if [[ "$group" == "$GROUP_WITH_EN" ]]; then
+  text="EN"
+  klass="active"
+  en_desc="enabled"
+elif [[ "$group" == "$GROUP_NO_EN" ]]; then
+  text="JP"
+  klass="inactive"
+  en_desc="disabled"
+fi
+
+tooltip=$(cat <<EOF
+Fcitx group: ${group:-unknown}
+EN: $en_desc
+State: $state
+Current IM: ${im:-unknown}
+
+Click: toggle EN group ($TOGGLE_HINT)
+Middle click: enable EN group
+Right click: disable EN group
+EOF
+)
+
+jq -nc --arg text "$text" --arg tooltip "$tooltip" --arg class "$klass" '{text:$text, tooltip:$tooltip, class:$class}'

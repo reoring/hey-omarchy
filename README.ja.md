@@ -15,7 +15,7 @@ Omarchy (Hyprland) の標準設定に、reoring のカスタム設定/スクリ�
 
 - AltGr を使ったワークスペース運用（"main monitor" 概念 + もう一方に parking ワークスペース）
 - vim 風フォーカス移動（`Super+H/J/K/L`）と、`hypr-*` の各種調整/トグル（opacity/blur/gaps/scale/refresh/nightlight など）
-- Waybar に "main monitor" / ふた閉じサスペンド / キーボード掃除モード / マウスポインター表示状態を表示（クリックでトグル、外部モニター位置メニューあり）
+- Waybar に "main monitor" / DDC 輝度 / fcitx ENグループ切替 / ふた閉じサスペンド / キーボード掃除モード / マウスポインター表示状態を表示（クリックでトグル、外部モニター位置メニューあり）
 - ハードウェア依存の設定を必要時のみ適用:
   - `monitors.conf` は `DP-4` を検出したときだけ適用（または `--force-monitors`）
   - `envs.conf` は NVIDIA を検出したときだけ適用（または `--force-nvidia-env`）。さらに `apply.sh` が `~/.config/hypr/hyprland.conf` に source 行を追加します
@@ -33,15 +33,17 @@ Omarchy (Hyprland) の標準設定に、reoring のカスタム設定/スクリ�
   - `~/.config/hypr/monitors.conf`（DP-4 を想定した追加設定。自動検出/強制オプションあり）
   - `~/.config/hypr/envs.conf`（NVIDIA向け env。自動検出/強制オプションあり）
 - Waybar
-  - `~/.config/waybar/config.jsonc`（main monitor / lid / keyboard cleaning / pointer visibility の custom モジュール追加）
+  - `~/.config/waybar/config.jsonc`（main monitor / DDC 輝度 / fcitx EN / lid / keyboard cleaning / pointer visibility の custom モジュール追加）
   - `~/.config/waybar/style.css`（上記モジュールにCSS適用）
-  - `~/.local/bin/waybar-main-monitor`, `~/.local/bin/waybar-lid-suspend`, `~/.local/bin/waybar-keyboard-clean`, `~/.local/bin/waybar-cursor-invisible`
+  - `~/.local/bin/waybar-main-monitor`, `~/.local/bin/waybar-ddc-brightness`, `~/.local/bin/waybar-fcitx-en`, `~/.local/bin/waybar-lid-suspend`, `~/.local/bin/waybar-keyboard-clean`, `~/.local/bin/waybar-cursor-invisible`
 - systemd (user)
   - `~/.config/systemd/user/lid-nosuspend.service`（lid close の suspend を inhibit するトグル用）
   - `~/.config/systemd/user/app-org.fcitx.Fcitx5@autostart.service.d/override.conf`（`cskk-git` 利用時に `fcitx5-cskk` が `libcskk` を見つけられるようにする）
 - スクリプト
+  - `~/.local/bin/fcitx-en-toggle`（fcitx5 のグループ切替: cskkのみ <-> cskk+keyboard-us）
   - `~/.local/bin/hypr-ws`（main/park 概念でワークスペース移動）
   - `~/.local/bin/hypr-monitor-position`（外部モニター位置を設定: left/right/up/down）
+  - `~/.local/bin/ddc-brightness`（DDC/CI 対応モニターの輝度調整: get/set/up/down）
   - `~/.local/bin/hypr-*-adjust` / `hypr-*-toggle`（opacity/blur/gaps/scale/refresh/main-monitor/internal-display/lid/keyboard-clean/cursor-invisible）
 
 補足:
@@ -84,6 +86,7 @@ bash ./apply.sh --check
 - Omarchy + Hyprland 環境（`omarchy-launch-*` など Omarchy の helper を呼びます）
 - よく使うコマンド: `bash`, `install`, `python`（3系）, `hyprctl`, `jq`, `systemctl --user`, `notify-send`, `walker`（または `fzf`）
 - `yay`（デフォルトで fcitx5 関連パッケージをインストールします。不要なら `--skip-packages`）
+- 任意: `ddcutil`（`~/.local/bin/ddc-brightness` で使用）
 - Waybar（Waybar 関連を適用する場合）
 
 ## カスタマイズ

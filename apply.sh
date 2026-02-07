@@ -102,8 +102,12 @@ preflight() {
     .local/bin/hypr-lid-suspend-toggle \
     .local/bin/hypr-keyboard-clean-toggle \
     .local/bin/hypr-cursor-invisible-toggle \
+    .local/bin/fcitx-en-toggle \
+    .local/bin/ddc-brightness \
     .local/bin/waybar-main-monitor \
+    .local/bin/waybar-ddc-brightness \
     .local/bin/waybar-lid-suspend \
+    .local/bin/waybar-fcitx-en \
     .local/bin/waybar-keyboard-clean \
     .local/bin/waybar-cursor-invisible \
     .local/bin/waybar-wwan \
@@ -194,6 +198,7 @@ install_yay_packages() {
     fcitx5-cskk-git
     fcitx5-cskk-git-debug
     skk-jisyo
+    ddcutil
   )
 
   log "Installing packages via yay (may prompt for sudo): ${pkgs[*]}"
@@ -317,6 +322,19 @@ log "Applying reoring customizations to: $HOME"
 
 install_yay_packages
 
+# Fcitx5 is aggressive about autosaving its config on shutdown. If we update
+# ~/.config/fcitx5/* while the daemon is running and then restart it, the
+# shutdown autosave can overwrite our changes. To avoid that, stop fcitx5 first
+# (only if it was running), then start it again after we install the files.
+FCITX_SERVICE="app-org.fcitx.Fcitx5@autostart.service"
+FCITX_WAS_ACTIVE=0
+if command -v systemctl >/dev/null 2>&1; then
+  if systemctl --user is-active --quiet "$FCITX_SERVICE"; then
+    FCITX_WAS_ACTIVE=1
+    run systemctl --user stop "$FCITX_SERVICE" >/dev/null 2>&1 || true
+  fi
+fi
+
 # Fcitx5 (IME)
 install_file "$SRC_HOME/.config/environment.d/90-fcitx5.conf" "$HOME/.config/environment.d/90-fcitx5.conf" 0644
 install_file "$SRC_HOME/.config/environment.d/fcitx.conf" "$HOME/.config/environment.d/fcitx.conf" 0644
@@ -382,6 +400,7 @@ else
 fi
 
 # Hypr helper scripts
+install_file "$SRC_HOME/.local/bin/fcitx-en-toggle" "$HOME/.local/bin/fcitx-en-toggle" 0755
 install_file "$SRC_HOME/.local/bin/hypr-ws" "$HOME/.local/bin/hypr-ws" 0755
 install_file "$SRC_HOME/.local/bin/hyprsunset-adjust" "$HOME/.local/bin/hyprsunset-adjust" 0755
 install_file "$SRC_HOME/.local/bin/hypr-opacity-adjust" "$HOME/.local/bin/hypr-opacity-adjust" 0755
@@ -395,6 +414,7 @@ install_file "$SRC_HOME/.local/bin/hypr-internal-display-toggle" "$HOME/.local/b
 install_file "$SRC_HOME/.local/bin/hypr-lid-suspend-toggle" "$HOME/.local/bin/hypr-lid-suspend-toggle" 0755
 install_file "$SRC_HOME/.local/bin/hypr-keyboard-clean-toggle" "$HOME/.local/bin/hypr-keyboard-clean-toggle" 0755
 install_file "$SRC_HOME/.local/bin/hypr-cursor-invisible-toggle" "$HOME/.local/bin/hypr-cursor-invisible-toggle" 0755
+install_file "$SRC_HOME/.local/bin/ddc-brightness" "$HOME/.local/bin/ddc-brightness" 0755
 
 # systemd user service for lid toggle
 install_file "$SRC_HOME/.config/systemd/user/lid-nosuspend.service" "$HOME/.config/systemd/user/lid-nosuspend.service" 0644
@@ -407,15 +427,19 @@ install_file \
 if command -v systemctl >/dev/null 2>&1; then
   run systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-  # Apply the new env immediately when possible.
-  run systemctl --user try-restart app-org.fcitx.Fcitx5@autostart.service >/dev/null 2>&1 || true
+  if (( FCITX_WAS_ACTIVE )); then
+    # Start fcitx5 again now that configs are installed.
+    run systemctl --user start "$FCITX_SERVICE" >/dev/null 2>&1 || true
+  fi
 fi
 
 # Waybar (optional)
 if (( NO_WAYBAR )); then
   log "skip: Waybar (--no-waybar)"
 else
+  install_file "$SRC_HOME/.local/bin/waybar-fcitx-en" "$HOME/.local/bin/waybar-fcitx-en" 0755
   install_file "$SRC_HOME/.local/bin/waybar-main-monitor" "$HOME/.local/bin/waybar-main-monitor" 0755
+  install_file "$SRC_HOME/.local/bin/waybar-ddc-brightness" "$HOME/.local/bin/waybar-ddc-brightness" 0755
   install_file "$SRC_HOME/.local/bin/waybar-lid-suspend" "$HOME/.local/bin/waybar-lid-suspend" 0755
   install_file "$SRC_HOME/.local/bin/waybar-keyboard-clean" "$HOME/.local/bin/waybar-keyboard-clean" 0755
   install_file "$SRC_HOME/.local/bin/waybar-cursor-invisible" "$HOME/.local/bin/waybar-cursor-invisible" 0755

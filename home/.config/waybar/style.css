@@ -35,8 +35,10 @@
 #pulseaudio,
 #custom-omarchy,
 #custom-screenrecording-indicator,
+#custom-ddc-brightness,
 #custom-main-monitor,
 #custom-lid,
+#custom-fcitx-en,
 #custom-keyboard-clean,
 #custom-cursor-invisible,
 #custom-update {
@@ -128,4 +130,20 @@ tooltip {
 
 #custom-cursor-invisible.unknown {
   opacity: 0.55;
+}
+
+#custom-fcitx-en.active {
+  color: #a55555;
+}
+
+#custom-fcitx-en.unknown {
+  opacity: 0.55;
+}
+
+#custom-ddc-brightness.unavailable {
+  opacity: 0.55;
+}
+
+#custom-ddc-brightness {
+  padding: 0 4px;
 }

@@ -8,15 +8,30 @@ DefaultIM=cskk
 
 [Groups/0/Items/0]
 # Name
-Name=keyboard-us
+Name=cskk
 # Layout
 Layout=
 
-[Groups/0/Items/1]
+[Groups/1]
+# Group Name
+Name=WithEn
+# Layout
+Default Layout=us
+# Default Input Method
+DefaultIM=cskk
+
+[Groups/1/Items/0]
 # Name
 Name=cskk
 # Layout
 Layout=
 
+[Groups/1/Items/1]
+# Name
+Name=keyboard-us
+# Layout
+Layout=
+
 [GroupOrder]
 0=Default
+1=WithEn

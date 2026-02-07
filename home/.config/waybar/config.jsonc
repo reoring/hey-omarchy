@@ -14,8 +14,10 @@
     "network",
     "pulseaudio",
     "cpu",
+    "custom/ddc-brightness",
     "custom/main-monitor",
     "custom/lid",
+    "custom/fcitx-en",
     "custom/keyboard-clean",
     "custom/cursor-invisible",
     "battery"
@@ -66,6 +68,18 @@
     "on-click": "omarchy-launch-or-focus-tui btop",
     "on-click-right": "alacritty"
   },
+  "custom/ddc-brightness": {
+    "exec": "$HOME/.local/bin/waybar-ddc-brightness",
+    "exec-on-event": false,
+    "on-scroll-up": "$HOME/.local/bin/ddc-brightness up --no-notify --osd",
+    "on-scroll-down": "$HOME/.local/bin/ddc-brightness down --no-notify --osd",
+    "on-click": "$HOME/.local/bin/ddc-brightness menu --no-notify --osd",
+    "on-click-right": "$HOME/.local/bin/ddc-brightness set 100 --no-notify --osd",
+    "smooth-scrolling-threshold": 0.05,
+    "signal": 15,
+    "interval": 3600,
+    "return-type": "json"
+  },
   "custom/main-monitor": {
     "exec": "$HOME/.local/bin/waybar-main-monitor",
     "on-click": "$HOME/.local/bin/hypr-main-monitor-toggle",
@@ -80,6 +94,15 @@
     "signal": 9,
     "interval": 3600,
     "return-type": "json"
+  },
+  "custom/fcitx-en": {
+    "exec": "$HOME/.local/bin/waybar-fcitx-en",
+    "return-type": "json",
+    "interval": 3600,
+    "signal": 16,
+    "on-click": "$HOME/.local/bin/fcitx-en-toggle toggle",
+    "on-click-middle": "$HOME/.local/bin/fcitx-en-toggle on",
+    "on-click-right": "$HOME/.local/bin/fcitx-en-toggle off"
   },
   "custom/keyboard-clean": {
     "exec": "$HOME/.local/bin/waybar-keyboard-clean",
