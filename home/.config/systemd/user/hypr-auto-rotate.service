@@ -1,0 +1,15 @@
+[Unit]
+Description=Automatic internal display rotation with touch and pen tracking
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=exec
+ExecStart=%h/.local/bin/hypr-auto-rotate run
+Restart=on-failure
+RestartSec=3
+KillMode=mixed
+TimeoutStopSec=15
+
+[Install]
+WantedBy=graphical-session.target

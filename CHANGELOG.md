@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Migrate the bundle to Omarchy Quattro: native Hyprland Lua modules, typed Lua helper mutations, and Quickshell status widgets instead of Waybar/Walker.
+- Preserve installed kana/Caps mapping, tmux-safe Alt workspace shortcuts, touchpad settings, opacity tags, automatic rotation, and hardware controls.
+- Merge custom shell settings without dropping unrelated widgets or duplicating entries; preserve 900-second lock and 960-second display idle timing with a user-owned lock clone.
+- Update apply/rollback for dedicated Lua modules, the Quattro Fcitx service, backups, and a fresh shell restart; validate shell setting preservation and rollback.
+
 ## v0.1.0 - 2026-04-22
 
 - Unbind default `SUPER+L` so vim-style focus-right works without conflicting with omarchy's workspace layout toggle.

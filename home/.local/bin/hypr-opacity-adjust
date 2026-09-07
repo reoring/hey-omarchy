@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
+
 STEP=${STEP:-0.05}
 MIN=${MIN:-0.20}
 MAX=${MAX:-1.00}
@@ -23,7 +25,7 @@ if [[ -z "$addr" || "$addr" == "null" ]]; then
   exit 0
 fi
 
-current_tag=$(jq -r '.tags[]? | select(startswith("'"$TAG_PREFIX"'"))' <<<"$active_json" | head -n1 || true)
+current_tag=$(jq -r --arg prefix "$TAG_PREFIX" '[.tags[]? | select(startswith($prefix))][0] // empty' <<<"$active_json")
 current_tag=${current_tag%\*}
 
 current=""
@@ -78,18 +80,23 @@ while IFS= read -r t; do
   [[ -z "$t" ]] && continue
   t=${t%\*}
   if [[ "$t" == ${TAG_PREFIX}* ]]; then
-    hyprctl dispatch tagwindow -- "-$t" >/dev/null 2>&1 || true
+    hypr_dispatch "hl.dsp.window.tag({ tag = $(hypr_lua_string "-$t"), window = $(hypr_lua_string "address:$addr") })"
   fi
 done < <(jq -r '.tags[]?' <<<"$active_json")
 
 # Apply tag so windowrules can persist the chosen opacity across reloads.
-hyprctl dispatch tagwindow "+$next_tag" >/dev/null 2>&1 || true
+hypr_dispatch "hl.dsp.window.tag({ tag = $(hypr_lua_string "+$next_tag"), window = $(hypr_lua_string "address:$addr") })"
 
-# Keep the old behavior too (immediate effect even without opacity.conf sourced).
-if [[ "$next" != "1.00" ]]; then
-  hyprctl dispatch setprop "address:$addr" opaque off >/dev/null 2>&1 || true
-else
-  hyprctl dispatch setprop "address:$addr" opaque on >/dev/null 2>&1 || true
-fi
-hyprctl dispatch setprop "address:$addr" opacity "$next" >/dev/null 2>&1 || true
+# Apply immediately even for an environment-customized step between tag rules.
+hypr_eval "local window = $(hypr_lua_string "address:$addr")
+  local opacity = $(hypr_lua_string "$next")
+  local function set(prop, value)
+    local result = hl.dispatch(hl.dsp.window.set_prop({ window = window, prop = prop, value = value }))
+    assert(result.ok, result.error)
+  end
+  set('opaque', opacity == '1.00' and 'on' or 'off')
+  for _, prop in ipairs({ 'opacity', 'opacity_inactive', 'opacity_fullscreen' }) do
+    set(prop, opacity)
+    set(prop .. '_override', '1')
+  end"
 notify-send "Window opacity" "$next" -t 1200

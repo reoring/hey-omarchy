@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
+
 INTERNAL_RE='^(eDP|LVDS|DSI)-'
 STATE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/hypr-external-position"
 
@@ -62,15 +64,15 @@ apply_layout() {
   local focused
   focused=$(echo "$monitors_json" | jq -r '.[] | select(.focused == true) | .name' | head -n 1)
 
-  local iw ih iscale irefresh
-  read -r iw ih iscale irefresh < <(
+  local iw ih iscale
+  read -r iw ih iscale < <(
     echo "$monitors_json" | jq -r --arg m "$internal" \
-      '.[] | select(.name==$m) | "\(.width) \(.height) \(.scale) \(.refreshRate)"'
+      '.[] | select(.name==$m) | if .transform % 2 == 1 then "\(.height) \(.width) \(.scale)" else "\(.width) \(.height) \(.scale)" end'
   )
-  local ew eh escale erefresh
-  read -r ew eh escale erefresh < <(
+  local ew eh escale
+  read -r ew eh escale < <(
     echo "$monitors_json" | jq -r --arg m "$external" \
-      '.[] | select(.name==$m) | "\(.width) \(.height) \(.scale) \(.refreshRate)"'
+      '.[] | select(.name==$m) | if .transform % 2 == 1 then "\(.height) \(.width) \(.scale)" else "\(.width) \(.height) \(.scale)" end'
   )
 
   # Hyprland's global coordinate space is in logical pixels, so positions must be
@@ -132,30 +134,14 @@ PY
       ;;
   esac
 
-  local ihz ehz
-  ihz=$(printf '%.0f' "${irefresh:-0}" 2>/dev/null || true)
-  ehz=$(printf '%.0f' "${erefresh:-0}" 2>/dev/null || true)
-
-  local int_mode ext_mode
-  if [[ -n "${ihz:-}" && "$ihz" != "0" ]]; then
-    int_mode="${iw}x${ih}@${ihz}"
-  else
-    int_mode="${iw}x${ih}"
-  fi
-  if [[ -n "${ehz:-}" && "$ehz" != "0" ]]; then
-    ext_mode="${ew}x${eh}@${ehz}"
-  else
-    ext_mode="${ew}x${eh}"
-  fi
-
-  hyprctl keyword monitor "${internal},${int_mode},${int_x}x${int_y},${iscale}" >/dev/null
-  hyprctl keyword monitor "${external},${ext_mode},${ext_x}x${ext_y},${escale}" >/dev/null
+  hypr_monitor_update "$internal" "position = $(hypr_lua_string "${int_x}x${int_y}")"
+  hypr_monitor_update "$external" "position = $(hypr_lua_string "${ext_x}x${ext_y}")"
 
   mkdir -p "$(dirname "$STATE_FILE")" 2>/dev/null || true
   printf '%s' "$dir" >"$STATE_FILE" 2>/dev/null || true
 
   if [[ -n "${focused:-}" && "$focused" != "null" ]]; then
-    hyprctl dispatch focusmonitor "$focused" >/dev/null 2>&1 || true
+    hypr_dispatch "hl.dsp.focus({ monitor = $(hypr_lua_string "$focused") })"
   fi
 
   notify "Monitor layout" "External position: $dir"
@@ -177,14 +163,7 @@ pick_from_menu() {
   fi
 
   local choice=""
-  if command -v walker >/dev/null 2>&1; then
-    choice=$(printf '%s\n' right left up down | walker --dmenu --placeholder "$placeholder" 2>/dev/null || true)
-  elif command -v fzf >/dev/null 2>&1; then
-    choice=$(printf '%s\n' right left up down | fzf --prompt='External monitor position> ' --height=40% --layout=reverse 2>/dev/null || true)
-  else
-    usage
-    exit 2
-  fi
+  choice=$(omarchy menu select "$placeholder" right left up down) || return 0
 
   [[ -z "$choice" ]] && exit 0
   apply_layout "$choice"

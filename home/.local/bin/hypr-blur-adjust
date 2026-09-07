@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
+
 # Adjust Hyprland's global blur strength.
 # Note: Hyprland blur is global (decoration:blur:*). It mostly matters when windows/layers are transparent.
 
@@ -36,8 +38,7 @@ elif (( next > MAX )); then
 fi
 
 # Ensure blur stays enabled when adjusting
-hyprctl keyword decoration:blur:enabled 1 >/dev/null
-hyprctl keyword decoration:blur:size "$next" >/dev/null
+hypr_eval "hl.config({ decoration = { blur = { enabled = true, size = tonumber($(hypr_lua_string "$next")) } } })"
 
 passes=$(hyprctl -j getoption decoration:blur:passes | jq -r '.int')
 notify-send "Blur" "size=${next}, passes=${passes}" -t 1200

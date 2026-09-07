@@ -5,7 +5,6 @@ STEP_PCT=${STEP_PCT:-5}
 DEFAULT_DISPLAY=${DEFAULT_DISPLAY:-1}
 NO_NOTIFY=${NO_NOTIFY:-0}
 TIMEOUT_MS=${TIMEOUT_MS:-1200}
-WAYBAR_DDC_BRIGHTNESS_SIGNAL=${WAYBAR_DDC_BRIGHTNESS_SIGNAL:-15}
 OSD_MODE=${OSD_MODE:-0}
 
 usage() {
@@ -17,15 +16,14 @@ Usage:
   ddc-brightness menu [--display N] [--sudo] [--no-notify]
 
 Extra:
-  --osd              Show an on-screen indicator (swayosd-client)
+  --osd              Show the Omarchy on-screen indicator
 
 Env:
   STEP_PCT=5            Step size for up/down (percent)
   DEFAULT_DISPLAY=1     ddcutil display number
   NO_NOTIFY=0           Set to 1 to disable notify-send
   TIMEOUT_MS=1200       notify-send timeout
-  WAYBAR_DDC_BRIGHTNESS_SIGNAL=15  Waybar refresh signal number
-  OSD_MODE=0            Set to 1 to show OSD (swayosd-client)
+  OSD_MODE=0            Set to 1 to show the Omarchy OSD
 
 Notes:
   - Requires ddcutil and a monitor with DDC/CI enabled.
@@ -50,8 +48,7 @@ osd_message() {
   if (( ! OSD_MODE )); then
     return 0
   fi
-  command -v swayosd-client >/dev/null 2>&1 || return 0
-  swayosd-client --custom-icon=display-brightness-symbolic --custom-message="$msg" >/dev/null 2>&1 || true
+  omarchy osd -i brightness -m "$msg" >/dev/null 2>&1 || true
 }
 
 osd_progress() {
@@ -59,29 +56,15 @@ osd_progress() {
   if (( ! OSD_MODE )); then
     return 0
   fi
-  command -v swayosd-client >/dev/null 2>&1 || return 0
+  command -v omarchy >/dev/null 2>&1 || return 0
   [[ -n "$pct" ]] || return 0
   [[ "$pct" =~ ^[0-9]+$ ]] || return 0
 
-  local progress
-  progress=$(PCT="$pct" python - <<'PY'
-import os
-
-pct = int(os.environ.get("PCT", "0"))
-pct = max(0, min(100, pct))
-print(f"{pct/100.0:.4f}")
-PY
-  )
-
-  swayosd-client \
-    --custom-icon=display-brightness-symbolic \
-    --custom-progress="$progress" \
-    --custom-progress-text="${pct}%" \
-    >/dev/null 2>&1 || true
+  omarchy osd -i brightness -p "$pct" >/dev/null 2>&1 || true
 }
 
-refresh_waybar() {
-  pkill -RTMIN+"$WAYBAR_DDC_BRIGHTNESS_SIGNAL" waybar >/dev/null 2>&1 || true
+refresh_shell() {
+  omarchy-shell hey-omarchy refresh ddc-brightness >/dev/null 2>&1 || true
 }
 
 fail() {
@@ -242,13 +225,7 @@ if [[ "$cmd" == "menu" ]]; then
   placeholder="DDC brightness (display ${display}, current ${current_pct}%)"
   choice=""
 
-  if command -v walker >/dev/null 2>&1; then
-    choice=$(printf '%s\n' 100 90 80 70 60 50 40 30 20 10 0 | walker --dmenu --placeholder "$placeholder" 2>/dev/null || true)
-  elif command -v fzf >/dev/null 2>&1; then
-    choice=$(printf '%s\n' 100 90 80 70 60 50 40 30 20 10 0 | fzf --prompt='DDC brightness> ' --height=40% --layout=reverse 2>/dev/null || true)
-  else
-    fail "walker or fzf not found (cannot open menu)"
-  fi
+  choice=$(omarchy menu select "$placeholder" 100 90 80 70 60 50 40 30 20 10 0) || exit 0
 
   [[ -z "$choice" ]] && exit 0
   pct="$choice"
@@ -315,5 +292,5 @@ fi
 
 notify "display ${display}: ${target_pct}%"
 osd_progress "$target_pct"
-refresh_waybar
+refresh_shell
 printf '%s\n' "$target_pct"

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
+
 LOW_HZ=${LOW_HZ:-60}
 HIGH_HZ=${HIGH_HZ:-120}
 
@@ -42,5 +44,5 @@ if [[ "$has_mode" != "true" ]]; then
   exit 1
 fi
 
-hyprctl keyword monitor "${monitor},${width}x${height}@${target_hz},${x}x${y},${scale}" >/dev/null
+hypr_monitor_update "$monitor" "mode = $(hypr_lua_string "${width}x${height}@${target_hz}")"
 notify-send "Refresh rate" "${monitor}: ${target_hz}Hz" -t 1200

@@ -26,7 +26,6 @@ write_stub() {
 write_stub systemctl 'exit 0'
 write_stub hyprctl 'case "${1:-}" in monitors) printf "%s\n" "[]" ;; *) exit 0 ;; esac'
 write_stub notify-send 'exit 0'
-write_stub omarchy-restart-waybar 'exit 0'
 
 set +e
 out=$(HOME="$home" PATH="$bindir:$PATH" bash ./apply.sh --check 2>&1)
@@ -40,7 +39,7 @@ if [[ $st -ne 0 ]]; then
   exit 1
 fi
 
-if [[ -e "$home/.config/hypr/bindings.conf" ]]; then
+if [[ -e "$home/.config" ]]; then
   printf '%s\n' "apply.sh --check must not install files" >&2
   exit 1
 fi

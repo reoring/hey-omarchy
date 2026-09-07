@@ -23,7 +23,7 @@ What it does:
   - Installs: mpv, mpvpaper (via yay)
   - Writes:  ~/.config/mpvpaper-wallpaper.env
   - Writes:  ~/.local/bin/start-mpvpaper-wallpaper
-  - Updates: ~/.config/hypr/autostart.conf (adds exec-once)
+  - Updates: ~/.config/hypr/autostart.lua (adds a Hyprland start handler)
 EOF
 }
 
@@ -88,7 +88,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-hypr_autostart="$HOME/.config/hypr/autostart.conf"
+hypr_autostart="$HOME/.config/hypr/autostart.lua"
 launcher="$HOME/.local/bin/start-mpvpaper-wallpaper"
 
 if [[ $disable -eq 1 ]]; then
@@ -100,9 +100,9 @@ if [[ $disable -eq 1 ]]; then
   python3 - <<'PY'
 import os
 
-autostart = os.path.expanduser('~/.config/hypr/autostart.conf')
-begin = '# --- mpvpaper live wallpaper (managed by setup-mpvpaper-live-wallpaper.sh) ---\n'
-end = '# --- end mpvpaper live wallpaper ---\n'
+autostart = os.path.expanduser('~/.config/hypr/autostart.lua')
+begin = '-- --- mpvpaper live wallpaper (managed by setup-mpvpaper-live-wallpaper.sh) ---\n'
+end = '-- --- end mpvpaper live wallpaper ---\n'
 
 try:
   with open(autostart, 'r', encoding='utf-8') as f:
@@ -119,9 +119,12 @@ if begin in s and end in s:
 PY
 
   pkill -x mpvpaper >/dev/null 2>&1 || true
+  omarchy plugin enable omarchy.background
 
   if command -v hyprctl >/dev/null 2>&1; then
-    hyprctl reload >/dev/null 2>&1 || true
+    hyprctl reload
+    errors=$(hyprctl configerrors)
+    [[ -z "$errors" || "$errors" == "ok" ]] || die "$errors"
   fi
 
   printf 'Disabled mpvpaper live wallpaper.\n'
@@ -171,16 +174,6 @@ if [[ -z "$monitor" ]]; then
     fi
   fi
 
-  if [[ -z "$monitor" && -f "$HOME/.config/hypr/monitors.conf" ]]; then
-    monitor="$(awk '
-      $0 !~ /^[[:space:]]*#/ {
-        if (match($0, /^[[:space:]]*monitor[[:space:]]*=[[:space:]]*([^,[:space:]]+)/, a)) {
-          print a[1];
-          exit
-        }
-      }
-    ' "$HOME/.config/hypr/monitors.conf" 2>/dev/null || true)"
-  fi
 fi
 
 [[ -n "$monitor" ]] || die "could not auto-detect monitor; pass --monitor (e.g. --monitor eDP-1)"
@@ -232,7 +225,7 @@ fi
 source "$cfg"
 
 pkill -x mpvpaper >/dev/null 2>&1 || true
-pkill -x swaybg >/dev/null 2>&1 || true
+omarchy plugin disable omarchy.background
 
 if command -v uwsm-app >/dev/null 2>&1; then
   exec uwsm-app -- mpvpaper -o "$MPV_OPTS" "$MONITOR" "$VIDEO"
@@ -245,14 +238,15 @@ chmod +x "$launcher"
 touch "$hypr_autostart"
 
 python3 - <<'PY'
+import json
 import os
 
-autostart = os.path.expanduser('~/.config/hypr/autostart.conf')
+autostart = os.path.expanduser('~/.config/hypr/autostart.lua')
 launcher = os.path.expanduser('~/.local/bin/start-mpvpaper-wallpaper')
 
-begin = '# --- mpvpaper live wallpaper (managed by setup-mpvpaper-live-wallpaper.sh) ---\n'
-end = '# --- end mpvpaper live wallpaper ---\n'
-block = begin + f'exec-once = {launcher}\n' + end
+begin = '-- --- mpvpaper live wallpaper (managed by setup-mpvpaper-live-wallpaper.sh) ---\n'
+end = '-- --- end mpvpaper live wallpaper ---\n'
+block = begin + f'o.exec_on_start({json.dumps(launcher)})\n' + end
 
 try:
   with open(autostart, 'r', encoding='utf-8') as f:
@@ -274,10 +268,13 @@ with open(autostart, 'w', encoding='utf-8') as f:
 PY
 
 if command -v hyprctl >/dev/null 2>&1; then
-  hyprctl reload >/dev/null 2>&1 || true
+  hyprctl reload
+  errors=$(hyprctl configerrors)
+  [[ -z "$errors" || "$errors" == "ok" ]] || die "$errors"
 
-  # Hyprland's exec-once won't run on reload; start it now for immediate effect.
-  hyprctl dispatch exec "$launcher" >/dev/null 2>&1 || true
+  # Start handlers run at login, not on reload.
+  quoted_launcher=$(python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$launcher")
+  hyprctl dispatch "exec_cmd($quoted_launcher)"
 fi
 
 printf '\nDone.\n'
@@ -290,9 +287,8 @@ printf '  Hypr:    %s\n' "$hypr_autostart"
 cat <<'EOF'
 
 Note:
-  Hyprland does not re-run exec-once on config reload.
-  This script tries to start the wallpaper immediately; if you still don't see it,
-  run:
-    hyprctl dispatch exec "$HOME/.local/bin/start-mpvpaper-wallpaper"
+  Hyprland does not re-run start handlers on config reload.
+  This script starts the wallpaper immediately; to start it manually, run:
+    "$HOME/.local/bin/start-mpvpaper-wallpaper"
   or log out and back in.
 EOF

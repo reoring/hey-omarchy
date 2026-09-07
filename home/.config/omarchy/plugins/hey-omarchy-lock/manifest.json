@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "hey-omarchy-lock",
+  "name": "Hey Omarchy Lock Screen",
+  "version": "1.0.0",
+  "author": "Omarchy",
+  "description": "Omarchy 4.0.2 session lock with the user's 960-second idle display timeout.",
+  "kinds": [
+    "service"
+  ],
+  "keepLoaded": true,
+  "omarchy": {
+    "clonedFrom": "omarchy.lock"
+  },
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}

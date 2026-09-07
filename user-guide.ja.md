@@ -2,16 +2,16 @@
 
 このガイドは、このディレクトリに含まれる Hyprland のキーバインド（ショートカット）をまとめたものです。
 
-このリポジトリ内: `home/.config/hypr/bindings.conf`
-適用後の場所: `~/.config/hypr/bindings.conf`（`apply.sh` で反映）
+このリポジトリ内: `home/.config/hypr/hey-omarchy-bindings.lua`
+適用後の場所: `~/.config/hypr/hey-omarchy-bindings.lua`（`apply.sh` で反映）
 
 ## 修飾キーの表記
 
 - `Super`: Windows/Command キー
-- `AltGr`: 右 Alt（ISO_Level3_Shift）
+- `AltGr`: このガイドでは右 Alt / かなキー。Lua は `ALT`（Mod1）を使い、旧設定と同様に左 Alt でも操作できます。
 - `code:10..19`: 数字キー列（多くの配列で `1..0`）
 
-ヒント: `Super+I` で Omarchy のキーバインド一覧（`omarchy-menu-keybindings`）を開けます。
+ヒント: `Super+I` で Omarchy のキーバインド一覧（`omarchy menu keybindings`）を開けます。
 
 ## アプリ起動
 
@@ -50,14 +50,14 @@
 
 - `AltGr+QWERTASDFG` は、常に main monitor 側のワークスペース `1..10` を対象にします。
 - `AltGr+ZXCVB` は、main monitor 側のワークスペース `11..15` を対象にします。
-- `AltGr+YUIOPHJKL;` は、main monitor 側のワークスペース `16..25` を対象にします。
+- `AltGr+YUIOP` は `16..20`、`AltGr+;` は `25` を対象にします。`H/J/K/L` と Shift 併用は tmux 用に空けています。
 - `AltGr+1..0` は、外部モニター接続時に "parking" 用ワークスペースを non-main 側に表示します。
   - `1=99` .. `0=90`
   - 2枚目のモニターが無い場合は `11..20` にフォールバックします。
 
 main monitor の切替は `Super+Ctrl+M` です。
 
-ヒント（Waybar）: このリポジトリの Waybar 設定を使っている場合、"main monitor" モジュールはクリック操作に対応しています。
+Quattro のバーの "main monitor" ウィジェットはクリック操作に対応しています。
 
 - 左クリック: main monitor 切替
 - 右クリック: 外部モニター位置を設定（left/right/up/down）
@@ -72,7 +72,7 @@ main monitor の切替は `Super+Ctrl+M` です。
 | `AltGr+A/S/D/F/G` | ワークスペース `6/7/8/9/10`（main） |
 | `AltGr+Z/X/C/V/B` | ワークスペース `11/12/13/14/15`（main） |
 | `AltGr+Y/U/I/O/P` | ワークスペース `16/17/18/19/20`（main） |
-| `AltGr+H/J/K/L/;` | ワークスペース `21/22/23/24/25`（main） |
+| `AltGr+;` | ワークスペース `25`（`H/J/K/L` は tmux 用に割り当てなし） |
 | `AltGr+1..0` | parking `99..90`（フォールバック `11..20`） |
 
 ### ウィンドウを移動
@@ -93,12 +93,17 @@ main monitor の切替は `Super+Ctrl+M` です。
 | `Super+Shift+;` / `Super+Shift+'` | 現在ワークスペースの gaps を下げる/上げる |
 | `Super+Shift+Ctrl+-` / `Super+Shift+Ctrl+=` | 外部モニターのスケールを下げる/上げる |
 | `Super+Ctrl+R` | リフレッシュレート切替（利用可能なら 60/120） |
-| `Super+Ctrl+Y` | Waybar 表示トグル |
+| `Super+Ctrl+Y` | Quattro バー表示トグル |
 | `Super+Ctrl+M` | main monitor 切替 + ワークスペース再配置 |
 | `Super+Ctrl+P` | 内蔵ディスプレイの ON/OFF（外部無しで消えない安全設計） |
 | `Super+Ctrl+O` | ふた閉じサスペンドの ON/OFF（systemd user service） |
+| `Super+Ctrl+Alt+O` | 自動回転の ON/OFF（次回ログインにも保存） |
 
 ## 設定の場所
 
-- キーバインドは `~/.config/hypr/bindings.conf` にあります。
+- キーバインドは `~/.config/hypr/hey-omarchy-bindings.lua`、入力・透明度は `~/.config/hypr/hey-omarchy.lua` にあります。
 - ワークスペースの "main/park" ルーティングは `~/.local/bin/hypr-ws` と `~/.local/bin/hypr-main-monitor-toggle` で実装されています。
+
+## 標準から上書きするキー
+
+標準の Super+J（分割）は U、Super+K（キー一覧）は I に移動し、H/J/K/L をフォーカス移動にします。Super+Ctrl+R（リマインダー）、P（電源パネル）、O（メニュー）はそれぞれ画面リフレッシュレート、内蔵画面、ふた閉じサスペンドの操作に置き換えます。既存の競合バインドは先に解除しています。

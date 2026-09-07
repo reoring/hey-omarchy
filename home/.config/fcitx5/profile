@@ -18,7 +18,7 @@ Name=WithEn
 # Layout
 Default Layout=us
 # Default Input Method
-DefaultIM=cskk
+DefaultIM=keyboard-us
 
 [Groups/1/Items/0]
 # Name

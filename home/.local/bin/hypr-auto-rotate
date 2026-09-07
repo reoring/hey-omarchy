@@ -1,0 +1,142 @@
+#!/usr/bin/python
+"""Sensor-driven eDP-1 rotation; on/off also control startup at login."""
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+
+UNIT = 'hypr-auto-rotate.service'
+OUTPUT = 'eDP-1'
+TRANSFORMS = {'normal': 0, 'left-up': 1, 'bottom-up': 2, 'right-up': 3}
+
+
+def hypr(*args):
+    return subprocess.run(['hyprctl', *args], capture_output=True, text=True,
+                          timeout=5, check=True).stdout.strip()
+
+
+def lua_string(value):
+    return '"' + ''.join(
+        '\\' + char if char in ('\\', '"') else
+        f'\\{ord(char):03d}' if ord(char) < 32 or ord(char) == 127 else char
+        for char in value) + '"'
+
+
+def apply_lua(code):
+    reply = hypr('eval', code)
+    if reply != 'ok':
+        raise RuntimeError(reply)
+
+
+def configure_input(kind, field, value):
+    encoded = str(value) if isinstance(value, int) else lua_string(value)
+    apply_lua(f'hl.config({{ input = {{ {kind} = {{ {field} = {encoded} }} }} }})')
+
+
+def monitor():
+    return next((m for m in json.loads(hypr('monitors', '-j')) if m['name'] == OUTPUT), None)
+
+
+def rotate(transform):
+    current = monitor()
+    if current is None:
+        return False
+    # Capture geometry for the first named rule; catch-all rules are not merged.
+    mode = f"{current['width']}x{current['height']}@{current['refreshRate']}"
+    position = f"{current['x']}x{current['y']}"
+    apply_lua(f'hl.monitor({{ output = {lua_string(OUTPUT)}, mode = {lua_string(mode)}, '
+              f'position = {lua_string(position)}, scale = {current["scale"]}, transform = {transform} }})')
+    return True
+
+
+def daemon():
+    initial = monitor()
+    if initial is None:
+        raise RuntimeError(f'{OUTPUT} is not active')
+    original = {}
+    for kind in ('touchdevice', 'tablet'):
+        for field in ('output', 'transform'):
+            value = json.loads(hypr('getoption', f'input:{kind}:{field}', '-j'))
+            original[kind, field] = value['int'] if field == 'transform' else value['str']
+
+    def stop(signum, frame):
+        raise KeyboardInterrupt
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, stop)
+    child = None
+    last = None
+    try:
+        child = subprocess.Popen(['stdbuf', '-oL', 'monitor-sensor', '--accel'],
+                                 stdout=subprocess.PIPE, text=True,
+                                 env={**os.environ, 'LC_ALL': 'C'})
+        print('Automatic rotation started', flush=True)
+        for line in child.stdout:
+            match = re.search(r'orientation(?: changed)?:\s*(normal|left-up|right-up|bottom-up)', line)
+            if not match:
+                continue
+            orientation = match.group(1)
+            transform = TRANSFORMS[orientation]
+            if transform == last:
+                continue
+            if not rotate(transform):
+                continue
+            for kind in ('touchdevice', 'tablet'):
+                configure_input(kind, 'output', OUTPUT)
+                configure_input(kind, 'transform', transform)
+            last = transform
+            print(f'Applied {orientation}: display/touch/pen transform={transform}', flush=True)
+        raise RuntimeError('monitor-sensor exited unexpectedly')
+    except KeyboardInterrupt:
+        pass
+    finally:
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, signal.SIG_IGN)
+        if child is not None and child.poll() is None:
+            child.terminate()
+            try:
+                child.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+        errors = []
+        try:
+            rotate(initial['transform'])
+        except (RuntimeError, subprocess.SubprocessError) as error:
+            errors.append(str(error))
+        for (kind, field), value in original.items():
+            try:
+                configure_input(kind, field, value)
+            except (RuntimeError, subprocess.SubprocessError) as error:
+                errors.append(str(error))
+        if errors:
+            raise RuntimeError('Restore failed: ' + '; '.join(errors))
+        print('Original display/touch/pen settings restored', flush=True)
+
+
+def main():
+    action = sys.argv[1] if len(sys.argv) == 2 else 'help'
+    if action == 'run':
+        daemon()
+        return
+    if action == 'status':
+        subprocess.run(['systemctl', '--user', 'is-active', UNIT], check=False)
+        subprocess.run(['systemctl', '--user', 'is-enabled', UNIT], check=False)
+        return
+    if action == 'toggle':
+        active = subprocess.run(['systemctl', '--user', 'is-active', '--quiet', UNIT]).returncode == 0
+        action = 'off' if active else 'on'
+    if action in ('on', 'off'):
+        subprocess.run(['systemctl', '--user', 'enable' if action == 'on' else 'disable',
+                        '--now', UNIT], check=True)
+        subprocess.run(['notify-send', 'Auto rotation', f'{action.upper()} (saved for next login)'], check=False)
+        return
+    print('Usage: hypr-auto-rotate on|off|toggle|status')
+    if action not in ('help', '--help', '-h'):
+        raise SystemExit(2)
+
+
+if __name__ == '__main__':
+    main()

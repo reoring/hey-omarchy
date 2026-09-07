@@ -1,132 +1,101 @@
 # Hey Omarchy-! / へい、おまち〜!
 
-reoring's opinionated Omarchy (Hyprland) customizations, packaged as a small bundle you can apply on top of a standard Omarchy setup.
+reoring's personal configuration bundle for **Omarchy Quattro (4.x)**, using native Hyprland Lua and the Quickshell desktop shell. Omarchy 3's Hyprland/Waybar configuration is no longer installed.
 
-This bundle does NOT touch `~/.local/share/omarchy/` (Omarchy-managed files). It only updates user-owned config/scripts (`~/.config/*`, `~/.local/bin/*`).
+The bundle leaves Omarchy-managed source files untouched. `apply.sh` backs up changed user files, installs dedicated modules, appends their loader to `hyprland.lua`, and merges custom widgets into the existing `shell.json`. Ordinary user Lua modules, standard bar widgets, and unrelated shell settings are preserved.
 
-`apply.sh` copies files from `home/` into your `$HOME` and creates timestamped backups before overwriting.
+Docs: [Japanese README](README.ja.md), [shortcut guide](docs/user-guide.md), [Japanese shortcut guide](user-guide.ja.md), [CSKK notes](japanese/cskk.md).
 
-Docs:
+## What is preserved
 
-- Japanese README: `README.ja.md`
-- Hyprland shortcut guide: `docs/user-guide.md` (EN) / `user-guide.ja.md` (JA)
-- CSKK notes: `japanese/cskk.md`
+- Main-monitor workspaces 1–20 and 25, with parking workspaces 99–90 on the other display and 11–20 single-monitor fallback. Add Shift to move a window. Alt+H/J/K/L are deliberately left free for tmux.
+- Right Alt and the kana key operate the workspace shortcuts. Lua uses `ALT` (Mod1), matching the old configuration's actual `ALTGR` behavior; left Alt also matches. Do not write `ALTGR` in native Lua key strings.
+- Caps→Ctrl, kana→Alt_R, key repeat 40/600, natural touchpad scrolling at 0.4, and touchpad use while typing.
+- Super+H/J/K/L focus, personal app/web-app shortcuts, opacity tags, blur, gaps, scale, refresh rate, monitor positioning, nightlight, and display controls.
+- Native bar controls for main monitor, DDC brightness, Fcitx JP/EN, lid suspension, keyboard cleaning, cursor visibility, roBa Bluetooth, WWAN, Tailscale, and CPU/btop.
+- Fifteen-minute idle lock and sixteen-minute display blanking, without a preceding screensaver. Resume restores display brightness.
+- Sensor-driven display/touch/pen rotation and the existing service's enabled/disabled state.
+- Fcitx5/CSKK ASCII passthrough and GTK Emacs-style keys/window controls.
 
-## What you get
+The legacy `waybar-*` executable names remain JSON status producers used by Quickshell. Neither Waybar nor Walker is required. Native shell IPC refreshes the widgets after actions.
 
-Highlights:
+## Configuration locations
 
-- AltGr workspace workflow with a "main monitor" concept + parking workspaces for the other display
-- Vim-style focus movement (`Super+H/J/K/L`) and small `hypr-*` adjust/toggle scripts (opacity/blur/gaps/scale/refresh/nightlight, etc.)
-- Waybar custom modules for "main monitor" (toggle + external position menu), DDC brightness, Fcitx EN group toggle, lid-close suspend, keyboard cleaning mode, and pointer visibility (all clickable toggles)
-- Hardware-aware installs:
-  - `monitors.conf` is installed only when `DP-4` is detected (or `--force-monitors`)
-  - `envs.conf` is installed only when NVIDIA is detected (or `--force-nvidia-env`) and `apply.sh` ensures `~/.config/hypr/hyprland.conf` sources it
+| File | Purpose |
+|---|---|
+| `~/.config/hypr/hey-omarchy.lua` | Input, opacity/window rules, optional hardware environment |
+| `~/.config/hypr/hey-omarchy-bindings.lua` | Personal keybindings; explicit unbinds override stock shortcuts |
+| `~/.config/hypr/keymap-kana-altgr.xkb` | Kana and Caps keyboard mapping |
+| `~/.config/hypr/hey-omarchy-options.lua` | Generated monitor/NVIDIA install options |
+| `~/.config/omarchy/shell.json` | Existing bar layout plus custom entries and idle settings |
+| `~/.config/omarchy/plugins/hey-omarchy/` | Shared status service and native widgets |
+| `~/.config/omarchy/plugins/hey-omarchy-lock/` | User-owned lock plugin preserving the old display timeout |
+| `~/.local/bin/` | Adjustment, status, input, network, and hardware helpers |
+| `~/.config/systemd/user/` | Lid inhibitor and automatic rotation services |
 
-## What's included (files)
+The lock plugin is cloned from Omarchy **4.0.2**; authentication and session locking remain the upstream implementation. Its display idle timeout is configurable as `idle.dpms`. Review/rebase this user-owned clone when upgrading Omarchy's lock implementation; package updates do not update local clones automatically.
 
-- Fcitx5
-  - `~/.config/environment.d/90-fcitx5.conf`, `~/.config/environment.d/fcitx.conf` (IME env vars)
-  - `~/.config/fcitx5/config`, `~/.config/fcitx5/profile` (hotkeys + default IM)
-  - `~/.config/fcitx5/conf/*.conf` (small addon tweaks)
-  - `~/.config/fcitx5/conf/fcitx5-cskk` (CSKK config: use an ASCII passthrough rule)
-  - `~/.local/share/libcskk/rules/*` (CSKK rule generation: keep key events in `@`/Ascii)
-- Hyprland
-  - `~/.config/hypr/bindings.conf` (AltGr workspace workflow, vim-style focus movement, adjustment keybinds)
-  - `~/.config/hypr/hypridle.conf` (lock/DPMS timeout tweaks)
-  - `~/.config/hypr/input.conf` (Caps -> Ctrl, touchpad natural scrolling)
-  - `~/.config/hypr/monitors.conf` (adds a DP-4 entry; auto-detected unless forced)
-  - `~/.config/hypr/envs.conf` (NVIDIA env vars; auto-detected unless forced)
-- Waybar
-  - `~/.config/waybar/config.jsonc` (adds custom modules: main monitor / DDC brightness / fcitx EN group / lid / keyboard cleaning / pointer visibility)
-  - `~/.config/waybar/style.css` (CSS for the above)
-  - `~/.local/bin/waybar-main-monitor`, `~/.local/bin/waybar-ddc-brightness`, `~/.local/bin/waybar-fcitx-en`, `~/.local/bin/waybar-lid-suspend`, `~/.local/bin/waybar-keyboard-clean`, `~/.local/bin/waybar-cursor-invisible`
-- systemd (user)
-  - `~/.config/systemd/user/lid-nosuspend.service` (toggle-style inhibitor for lid-close suspend)
-- System
-  - `/etc/ld.so.conf.d/cskk.conf` (fix: register `/usr/lib/cskk` so `fcitx5-cskk` finds `libcskk.so.3` when using `cskk-git`; written via sudo during apply)
-- Scripts
-  - `~/.local/bin/fcitx-en-toggle` (toggle fcitx5 group: cskk-only <-> cskk+keyboard-us)
-  - `~/.local/bin/hypr-ws` (main/park workspace routing)
-  - `~/.local/bin/hypr-monitor-position` (set external monitor position: left/right/up/down)
-  - `~/.local/bin/ddc-brightness` (DDC/CI brightness for external monitors: get/set/up/down)
-  - `~/.local/bin/hypr-*-adjust` / `hypr-*-toggle` (opacity/blur/gaps/scale/refresh/main-monitor/internal-display/lid/keyboard-clean/cursor-invisible)
+## Apply
 
-Notes:
-
-- Fcitx EN group toggle is bound to `Super+Ctrl+J` and is also available as a Waybar `JP/EN` module.
-- `apply.sh` temporarily stops fcitx5 while installing `~/.config/fcitx5/*` to avoid fcitx autosave overwriting updated config.
-- When installing NVIDIA envs, `apply.sh` may edit `~/.config/hypr/hyprland.conf` to add `source = ~/.config/hypr/envs.conf`.
-- Some keybindings are personal (Spotify/Signal/1Password/web apps). Adjust in `~/.config/hypr/bindings.conf` (see the shortcut guide).
-- If your external monitor name is not `DP-4`, update `home/.config/hypr/monitors.conf` (and apply with `--force-monitors`).
-
-## Usage
-
-From this repo directory:
-
-Optional (DDC brightness setup: `i2c-dev` + udev rules):
-
-```sh
-bash ./setup-ddcutil.sh
-```
-
-```sh
-bash ./apply.sh
-```
-
-Preflight (no changes):
+From this directory:
 
 ```sh
 bash ./apply.sh --check
+bash ./apply.sh --dry-run --skip-packages
+bash ./apply.sh --skip-packages
 ```
 
-Re-running is safe: unchanged files are detected and skipped.
+Omit `--skip-packages` when the input-method/DDC dependencies still need installing. Applying briefly restarts `omarchy-fcitx5.service` if active, validates and reloads Hyprland, and restarts the desktop shell to avoid stale cached QML components. Applications and the login session stay running.
+
+Unchanged files are skipped. Reapplication preserves existing custom widget positions/settings and does not duplicate widgets. Bundle-owned settings are reapplied, including idle timeouts, so keep intended changes in the bundle too. Old live `.conf` files and Quattro migration backups are not deleted.
 
 Options:
 
-- `--check` Print environment/repo checks and exit
-- `--dry-run` Print planned actions only
-- `--skip-packages` Skip package install via yay
-- `--gtk-gsettings` Also set GTK prefs via gsettings (Emacs keys + button layout) (enabled by default)
-- `--no-gtk-gsettings` Do not touch GTK gsettings
-- `--no-waybar` Skip Waybar config/scripts
-- `--with-shaders` Symlink `~/.config/hypr/shaders` from `/usr/share/aether/shaders`
-- `--force-monitors` Always install `~/.config/hypr/monitors.conf` (even if DP-4 is not detected)
-- `--force-nvidia-env` Always install `~/.config/hypr/envs.conf` and source it
-- `--skip-nvidia-env` Never install `~/.config/hypr/envs.conf`
+- `--check`: inspect required files and available tools without changing user configuration.
+- `--dry-run`: show proposed operations without applying them.
+- `--skip-packages`: skip yay package installation.
+- `--no-bar`: skip shell widgets and idle settings.
+- `--gtk-gsettings` / `--no-gtk-gsettings`: enable/disable GTK preference application (enabled by default).
+- `--force-monitors`: apply generic preferred-mode/automatic-position/automatic-scale monitor policy; otherwise preserve `monitors.lua`.
+- `--force-nvidia-env` / `--skip-nvidia-env`: override NVIDIA detection. AMD/Intel systems receive no NVIDIA variables by default.
+- `--with-shaders`: create user symlinks to installed Aether shaders.
 
-## Requirements / assumptions
+Optional hardware setup:
 
-- Omarchy + Hyprland setup (these files/scripts call Omarchy helpers like `omarchy-launch-*`)
-- Tools commonly available on Omarchy systems: `bash`, `install`, `python` (3.x), `hyprctl`, `jq`, `systemctl --user`, `notify-send`, `walker` (or `fzf`)
-- `yay` (used by default to install fcitx5-related packages; skip with `--skip-packages`)
-- Optional (DDC brightness): `ddcutil` (installed by default via `apply.sh` unless `--skip-packages`; `setup-ddcutil.sh` also installs udev rules)
-- Waybar (only if you install Waybar config)
+```sh
+bash ./setup-ddcutil.sh
+bash ./setup-wwan-latency-switcher.sh --help
+bash ./setup-mpvpaper-live-wallpaper.sh --help
+```
 
-## Customize
+DDC requires a compatible external display; WWAN requires modem hardware/tools. Absence is displayed rather than treated as successful hardware operation. Automatic rotation requires `monitor-sensor` from iio-sensor-proxy.
 
-- Edit files under `home/` and re-run `bash ./apply.sh`, or edit the installed copies under `~/.config/` and `~/.local/bin/`.
+The existing CSKK setup may use sudo to register `/usr/lib/cskk` in `/etc/ld.so.conf.d/cskk.conf` if needed; see the CSKK notes.
 
-After applying:
+## Verify and customize
 
-- Hyprland usually auto-reloads; if needed run `hyprctl reload`
-- Waybar: `omarchy-restart-waybar` (the script will try to run this)
+```sh
+hyprctl configerrors
+omarchy shell hey-omarchy status
+omarchy shell idle status
+omarchy shell lock status
+bash tests/run.sh
+```
+
+Edit the bundle's `home/` files and reapply, or edit installed user copies directly. `home/.config/omarchy/hey-omarchy.json` is an installer fragment, not a replacement shell configuration. Its `barAdditions` are merged by widget id and name; standard widgets and unrelated settings remain intact.
+
+Quattro's stock Super+J/K/L and several Ctrl shortcuts are intentionally overridden; see the shortcut guide. `Super+Ctrl+Y` now toggles the native bar, and `Super+Ctrl+Alt+O` toggles persistent automatic rotation.
 
 ## Rollback
 
-Before overwriting, the script creates a backup next to the target file as `*.bak.YYYYmmdd-HHMMSS`.
-
-To restore the latest backups for the files managed by this repo:
-
-```sh
-bash ./rollback.sh
-```
-
-Dry-run:
+Changed files are backed up next to their originals as `*.bak.YYYYmmdd-HHMMSS`.
 
 ```sh
 bash ./rollback.sh --dry-run
+bash ./rollback.sh
 ```
+
+Rollback restores the latest apply backups for managed files, including the Lua entrypoint and shell configuration, then reloads Hyprland and restarts the shell. Files first created by the bundle have no prior backup and are left on disk. This reverses the customization bundle, **not** the Quattro system upgrade.
 
 ## License
 

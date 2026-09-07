@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Shared by the bundle's Hyprland controls; source this file, do not execute it.
+
+hypr_lua_string() {
+  local value="$1"
+  if [[ "$value" == *[[:cntrl:]]* ]]; then
+    printf '%s\n' 'Control characters are not allowed in Hyprland values' >&2
+    return 1
+  fi
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  printf '"%s"' "$value"
+}
+
+hypr_eval() {
+  local reply
+  reply=$(hyprctl eval "$1") || return
+  if [[ "$reply" != "ok" ]]; then
+    printf 'Hyprland: %s\n' "$reply" >&2
+    return 1
+  fi
+}
+
+
+hypr_dispatch() {
+  hypr_eval "local result = hl.dispatch($1); assert(result.ok, result.error)"
+}
+
+hypr_monitor_update() {
+  local output
+  output=$(hypr_lua_string "$1") || return
+  # The first named rule does not inherit a catch-all rule. Capture the active
+  # geometry before applying overrides, including the sensor's current rotation.
+  hypr_eval "local m = assert(hl.get_monitor($output), 'Monitor is unavailable')
+    local spec = { output = $output,
+      mode = string.format('%dx%d@%.5f', m.width, m.height, m.refresh_rate),
+      position = string.format('%dx%d', m.x, m.y), scale = m.scale, transform = m.transform }
+    for key, value in pairs({ $2 }) do spec[key] = value end
+    hl.monitor(spec)"
+}

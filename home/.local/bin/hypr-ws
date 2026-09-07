@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
+
 usage() {
   echo "usage: hypr-ws <main|park|ext|int> <goto|move|move-silent> <ws> [fallback_ws]" >&2
   exit 2
@@ -122,7 +124,7 @@ ensure_workspace_on_monitor_silent() {
   local mon="$2"
 
   if workspace_exists "$id"; then
-    hyprctl dispatch moveworkspacetomonitor "$id $mon" >/dev/null
+    hypr_dispatch "hl.dsp.workspace.move({ workspace = $(hypr_lua_string "$id"), monitor = $(hypr_lua_string "$mon") })"
     return 0
   fi
 
@@ -131,14 +133,14 @@ ensure_workspace_on_monitor_silent() {
   orig_mon="$focused"
   orig_ws=$(hyprctl activeworkspace -j | jq -r '.id')
 
-  hyprctl dispatch focusmonitor "$mon" >/dev/null
-  hyprctl dispatch workspace "$id" >/dev/null
+  hypr_dispatch "hl.dsp.focus({ monitor = $(hypr_lua_string "$mon") })"
+  hypr_dispatch "hl.dsp.focus({ workspace = $(hypr_lua_string "$id") })"
 
   if [[ -n "$orig_mon" ]]; then
-    hyprctl dispatch focusmonitor "$orig_mon" >/dev/null
+    hypr_dispatch "hl.dsp.focus({ monitor = $(hypr_lua_string "$orig_mon") })"
   fi
   if [[ -n "$orig_ws" && "$orig_ws" != "null" ]]; then
-    hyprctl dispatch workspace "$orig_ws" >/dev/null
+    hypr_dispatch "hl.dsp.focus({ workspace = $(hypr_lua_string "$orig_ws") })"
   fi
 }
 
@@ -146,7 +148,7 @@ move_workspace_to_monitor_if_exists() {
   local id="$1"
   local mon="$2"
   if workspace_exists "$id"; then
-    hyprctl dispatch moveworkspacetomonitor "$id $mon" >/dev/null
+    hypr_dispatch "hl.dsp.workspace.move({ workspace = $(hypr_lua_string "$id"), monitor = $(hypr_lua_string "$mon") })"
   fi
 }
 
@@ -155,22 +157,22 @@ active_window_addr=$(hyprctl activewindow -j 2>/dev/null | jq -r '.address // em
 case "$action" in
   goto)
     move_workspace_to_monitor_if_exists "$dest_ws" "$dest_monitor"
-    hyprctl dispatch focusmonitor "$dest_monitor" >/dev/null
-    hyprctl dispatch workspace "$dest_ws" >/dev/null
+    hypr_dispatch "hl.dsp.focus({ monitor = $(hypr_lua_string "$dest_monitor") })"
+    hypr_dispatch "hl.dsp.focus({ workspace = $(hypr_lua_string "$dest_ws") })"
     ;;
 
   move)
     [[ -z "$active_window_addr" || "$active_window_addr" == "null" ]] && exit 0
     move_workspace_to_monitor_if_exists "$dest_ws" "$dest_monitor"
-    hyprctl dispatch movetoworkspace "$dest_ws,address:$active_window_addr" >/dev/null
-    hyprctl dispatch focusmonitor "$dest_monitor" >/dev/null
-    hyprctl dispatch workspace "$dest_ws" >/dev/null
+    hypr_dispatch "hl.dsp.window.move({ workspace = $(hypr_lua_string "$dest_ws"), window = $(hypr_lua_string "address:$active_window_addr"), follow = true })"
+    hypr_dispatch "hl.dsp.focus({ monitor = $(hypr_lua_string "$dest_monitor") })"
+    hypr_dispatch "hl.dsp.focus({ workspace = $(hypr_lua_string "$dest_ws") })"
     ;;
 
   move-silent)
     [[ -z "$active_window_addr" || "$active_window_addr" == "null" ]] && exit 0
     ensure_workspace_on_monitor_silent "$dest_ws" "$dest_monitor"
-    hyprctl dispatch movetoworkspacesilent "$dest_ws,address:$active_window_addr" >/dev/null
+    hypr_dispatch "hl.dsp.window.move({ workspace = $(hypr_lua_string "$dest_ws"), window = $(hypr_lua_string "address:$active_window_addr"), follow = false })"
     ;;
 
   *)

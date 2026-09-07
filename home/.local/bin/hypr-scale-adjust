@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
+
 MIN=${MIN:-1.0}
 MAX=${MAX:-4.0}
 ALLOWED_DENOMS=${ALLOWED_DENOMS:-"1,2,3,4,5,8,15"}
@@ -55,7 +57,7 @@ infer_external_position() {
   local internal="$2"
   local external="$3"
 
-  INTERNAL="$internal" EXTERNAL="$external" python - <<'PY' <<<"$monitors_json" 2>/dev/null || true
+  INTERNAL="$internal" EXTERNAL="$external" MONITORS_JSON="$monitors_json" python - <<'PY'
 import json
 import os
 import sys
@@ -66,7 +68,7 @@ if not internal or not external:
     raise SystemExit(0)
 
 try:
-    data = json.load(sys.stdin)
+    data = json.loads(os.environ["MONITORS_JSON"])
 except Exception:
     raise SystemExit(0)
 
@@ -138,8 +140,7 @@ maybe_relayout_pair() {
     return 0
   fi
 
-  HYPR_MONITOR_POSITION_QUIET=1 "$pos_cmd" "$dir" >/dev/null 2>&1 || true
-  return 0
+  HYPR_MONITOR_POSITION_QUIET=1 "$pos_cmd" "$dir" >/dev/null
 }
 
 direction="${1:-}"
@@ -175,7 +176,6 @@ if [[ -z "${scale:-}" || "$scale" == "null" ]]; then
   exit 0
 fi
 
-current_hz=$(printf "%.0f" "$current_refresh")
 
 next_scale=$(
   DIR="$direction" CUR="$scale" W="$width" H="$height" MIN="$MIN" MAX="$MAX" ALLOWED="$ALLOWED_DENOMS" \
@@ -235,7 +235,7 @@ print(f"{nxt:.7f}".rstrip("0").rstrip("."))
 PY
 )
 
-hyprctl keyword monitor "${monitor},${width}x${height}@${current_hz},${x}x${y},${next_scale}" >/dev/null
+hypr_monitor_update "$monitor" "scale = tonumber($(hypr_lua_string "$next_scale"))"
 
 # Re-apply monitor positions after scaling (Hyprland positions are in logical pixels).
 maybe_relayout_pair "$monitors_json" "$monitor"

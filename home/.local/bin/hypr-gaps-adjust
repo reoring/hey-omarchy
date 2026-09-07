@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
+
 # Adjust Hyprland's gaps for the active workspace.
-# Uses workspace rules (like omarchy-hyprland-workspace-toggle-gaps), so changes are per-workspace.
+# Workspace rules keep each adjustment local to the active workspace.
 
 STEP_OUT=${STEP_OUT:-2}
 STEP_IN=${STEP_IN:-1}
@@ -27,24 +29,15 @@ fi
 
 rules_json=$(hyprctl workspacerules -j)
 
-line=$(
-  echo "$rules_json" | jq -r --arg ws "$workspace_id" '.[] | select(.workspaceString==$ws) | "\(.gapsOut[0] // 0)\t\(.gapsIn[0] // 0)\t\(.borderSize // 0)"' | head -n1 || true
-)
+default_out=$(hyprctl -j getoption general:gaps_out | jq -er '.css | split(" ")[0] | tonumber')
+default_in=$(hyprctl -j getoption general:gaps_in | jq -er '.css | split(" ")[0] | tonumber')
+default_border=$(hyprctl -j getoption general:border_size | jq -er '.int')
 
-current_out=""
-current_in=""
-current_border=""
-if [[ -n "$line" ]]; then
-  IFS=$'\t' read -r current_out current_in current_border <<<"$line"
-fi
-
-default_out=$(hyprctl -j getoption general:gaps_out | jq -r '.custom // "0"' | awk '{print $1}')
-default_in=$(hyprctl -j getoption general:gaps_in | jq -r '.custom // "0"' | awk '{print $1}')
-default_border=$(hyprctl -j getoption general:border_size | jq -r '.int // 0')
-
-current_out=${current_out:-$default_out}
-current_in=${current_in:-$default_in}
-current_border=${current_border:-$default_border}
+current_rule=$(jq -c --arg ws "$workspace_id" '
+  [.[] | select(.workspaceString == $ws and .enabled != false)] | add // {}' <<<"$rules_json")
+current_out=$(jq -r --argjson fallback "$default_out" '.gapsOut[0] // $fallback' <<<"$current_rule")
+current_in=$(jq -r --argjson fallback "$default_in" '.gapsIn[0] // $fallback' <<<"$current_rule")
+current_border=$(jq -r --argjson fallback "$default_border" '.borderSize // $fallback' <<<"$current_rule")
 
 if [[ "$direction" == "up" ]]; then
   next_out=$((current_out + STEP_OUT))
@@ -77,5 +70,5 @@ elif (( next_border == 0 )); then
   next_border=$default_border
 fi
 
-hyprctl keyword "workspace $workspace_id, gapsout:${next_out}, gapsin:${next_in}, bordersize:${next_border}" >/dev/null
+hypr_eval "hl.workspace_rule({ workspace = $(hypr_lua_string "$workspace_id"), gaps_out = tonumber($(hypr_lua_string "$next_out")), gaps_in = tonumber($(hypr_lua_string "$next_in")), border_size = tonumber($(hypr_lua_string "$next_border")) })"
 notify-send "Workspace gaps" "ws=${workspace_id} out=${next_out} in=${next_in} border=${next_border}" -t 1200

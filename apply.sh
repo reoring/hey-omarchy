@@ -3,9 +3,10 @@ set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SRC_HOME="$ROOT/home"
+OMARCHY_ROOT="${OMARCHY_PATH:-/usr/share/omarchy}"
 
 DRY_RUN=0
-NO_WAYBAR=0
+NO_BAR=0
 WITH_SHADERS=0
 FORCE_MONITORS=0
 FORCE_NVIDIA_ENV=0
@@ -24,11 +25,11 @@ Options:
   --skip-packages      Skip package install via yay
   --gtk-gsettings       Also set GTK prefs via gsettings (Emacs keys + button layout) [default]
   --no-gtk-gsettings    Do not touch GTK gsettings
-  --no-waybar          Skip Waybar config/scripts
+  --no-bar             Skip Quattro shell widgets and idle settings
   --with-shaders       Symlink ~/.config/hypr/shaders from /usr/share/aether/shaders
-  --force-monitors     Always install ~/.config/hypr/monitors.conf
-  --force-nvidia-env   Always install ~/.config/hypr/envs.conf and source it
-  --skip-nvidia-env    Never install ~/.config/hypr/envs.conf
+  --force-monitors     Apply bundled hardware-specific monitor settings
+  --force-nvidia-env   Apply NVIDIA environment settings
+  --skip-nvidia-env    Never apply NVIDIA environment settings
   -h, --help           Show help
 EOF
 }
@@ -40,7 +41,7 @@ while [[ $# -gt 0 ]]; do
     --skip-packages) SKIP_PACKAGES=1 ;;
     --gtk-gsettings) APPLY_GTK_GSETTINGS=1 ;;
     --no-gtk-gsettings) APPLY_GTK_GSETTINGS=0 ;;
-    --no-waybar) NO_WAYBAR=1 ;;
+    --no-bar) NO_BAR=1 ;;
     --with-shaders) WITH_SHADERS=1 ;;
     --force-monitors) FORCE_MONITORS=1 ;;
     --force-nvidia-env) FORCE_NVIDIA_ENV=1 ;;
@@ -74,7 +75,6 @@ preflight() {
   local f
   for f in \
     .config/environment.d/90-fcitx5.conf \
-    .config/environment.d/fcitx.conf \
     .config/gtk-3.0/settings.ini \
     .config/gtk-4.0/settings.ini \
     .config/fcitx5/config \
@@ -83,15 +83,16 @@ preflight() {
     .config/fcitx5/conf/notifications.conf \
     .config/fcitx5/conf/xcb.conf \
     .config/fcitx5/conf/fcitx5-cskk \
-    .config/hypr/bindings.conf \
-    .config/hypr/hypridle.conf \
-    .config/hypr/input.conf \
-    .config/hypr/monitors.conf \
-    .config/hypr/envs.conf \
-    .config/hypr/opacity.conf \
+    .config/hypr/hey-omarchy.lua \
+    .config/hypr/hey-omarchy-bindings.lua \
+    .config/hypr/keymap-kana-altgr.xkb \
     .config/systemd/user/lid-nosuspend.service \
-    .config/waybar/config.jsonc \
-    .config/waybar/style.css \
+    .config/systemd/user/hypr-auto-rotate.service \
+    .config/omarchy/hey-omarchy.json \
+    .config/omarchy/plugins/hey-omarchy/manifest.json \
+    .config/omarchy/plugins/hey-omarchy-lock/manifest.json \
+    .local/bin/hey-hypr-common \
+    .local/bin/hypr-auto-rotate \
     .local/bin/hypr-ws \
     .local/bin/hyprsunset-adjust \
     .local/bin/hypr-opacity-adjust \
@@ -143,7 +144,7 @@ preflight() {
     fi
   done
 
-  for c in python python3 jq hyprctl systemctl notify-send omarchy-restart-waybar nmcli mmcli walker fzf yay; do
+  for c in python python3 jq hyprctl systemctl notify-send omarchy nmcli mmcli yay; do
     if command -v "$c" >/dev/null 2>&1; then
       log "cmd: $c"
     else
@@ -262,63 +263,55 @@ hyprctl_has_monitor() {
   hyprctl monitors -j 2>/dev/null | jq -e --arg n "$name" 'any(.[]; .name == $n)' >/dev/null 2>&1
 }
 
-ensure_source_line() {
-  local file="$1"
-  local line="$2"
-  local after_regex="$3"
-
+configure_hyprland() {
+  local file="$HOME/.config/hypr/hyprland.lua"
   if [[ ! -f "$file" ]]; then
-    log "skip: $file not found (cannot add source line)"
+    install_file "$OMARCHY_ROOT/config/hypr/hyprland.lua" "$file" 0644
+  fi
+
+  local nvidia=false
+  if (( ! SKIP_NVIDIA_ENV )) && { (( FORCE_NVIDIA_ENV )) || detect_nvidia; }; then
+    nvidia=true
+  fi
+
+  local tmp
+  tmp=$(mktemp)
+  printf 'return { force_monitors = %s, nvidia = %s }\n' \
+    "$([[ $FORCE_MONITORS == 1 ]] && echo true || echo false)" "$nvidia" >"$tmp"
+  install_file "$tmp" "$HOME/.config/hypr/hey-omarchy-options.lua" 0644
+  rm -f "$tmp"
+
+  if (( DRY_RUN )) && [[ ! -f "$file" ]]; then
+    log "[dry-run] append require(\"hypr.hey-omarchy\") to $file"
     return 0
   fi
 
-  if grep -Fxq "$line" "$file"; then
-    log "ok: already sourced in $file"
-    return 0
-  fi
-
-  backup_if_needed "$file"
-  if (( DRY_RUN )); then
-    log "[dry-run] insert into $file: $line"
-    return 0
-  fi
-
-  python - "$file" "$line" "$after_regex" <<'PY'
+  tmp=$(mktemp)
+  python3 - "$file" >"$tmp" <<'PY'
 import re
 import sys
+from pathlib import Path
 
-path = sys.argv[1]
-line = sys.argv[2]
-after = sys.argv[3]
-
-with open(path, 'r', encoding='utf-8', errors='replace') as f:
-    lines = f.readlines()
-
-if any(l.rstrip('\n') == line for l in lines):
-    raise SystemExit(0)
-
-pat = re.compile(after)
-out = []
-inserted = False
-
-for l in lines:
-    out.append(l)
-    if (not inserted) and pat.search(l):
-        if not out[-1].endswith('\n'):
-            out[-1] = out[-1] + '\n'
-        out.append(line + '\n')
-        inserted = True
-
-if not inserted:
-    if out and not out[-1].endswith('\n'):
-        out[-1] = out[-1] + '\n'
-    out.append(line + '\n')
-
-with open(path, 'w', encoding='utf-8') as f:
-    f.writelines(out)
+text = Path(sys.argv[1]).read_text()
+loaded = re.search(r"""^\s*require\s*\(?\s*["']hypr\.hey-omarchy["']\s*\)?\s*;?\s*(?:--.*)?$""", text, re.M)
+if not loaded:
+    text = text.rstrip() + '\n\n-- Personal Quattro customizations, after Omarchy and user defaults.\nrequire("hypr.hey-omarchy")\n'
+sys.stdout.write(text)
 PY
+  install_file "$tmp" "$file" 0644
+  rm -f "$tmp"
+}
 
-  log "updated: $file"
+configure_shell() {
+  local tmp
+  tmp=$(mktemp)
+  if ! python3 "$ROOT/merge-shell-config.py" \
+    "$HOME/.config/omarchy/shell.json" "$SRC_HOME/.config/omarchy/hey-omarchy.json" >"$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  install_file "$tmp" "$HOME/.config/omarchy/shell.json" 0644
+  rm -f "$tmp"
 }
 
 ensure_libcskk_metadata_has_passthrough() {
@@ -768,6 +761,11 @@ if (( CHECK_ONLY )); then
 fi
 
 log "Applying reoring customizations to: $HOME"
+preflight
+if [[ ! -f "$OMARCHY_ROOT/default/hypr/bootstrap.lua" ]]; then
+  log "ERROR: this bundle requires Omarchy Quattro with native Lua configuration."
+  exit 1
+fi
 
 install_yay_packages
 
@@ -775,18 +773,24 @@ install_yay_packages
 # ~/.config/fcitx5/* while the daemon is running and then restart it, the
 # shutdown autosave can overwrite our changes. To avoid that, stop fcitx5 first
 # (only if it was running), then start it again after we install the files.
-FCITX_SERVICE="app-org.fcitx.Fcitx5@autostart.service"
+FCITX_SERVICE="omarchy-fcitx5.service"
 FCITX_WAS_ACTIVE=0
+restart_fcitx() {
+  if (( FCITX_WAS_ACTIVE )); then
+    run systemctl --user start "$FCITX_SERVICE"
+    FCITX_WAS_ACTIVE=0
+  fi
+}
+trap restart_fcitx EXIT
 if command -v systemctl >/dev/null 2>&1; then
   if systemctl --user is-active --quiet "$FCITX_SERVICE"; then
     FCITX_WAS_ACTIVE=1
-    run systemctl --user stop "$FCITX_SERVICE" >/dev/null 2>&1 || true
+    run systemctl --user stop "$FCITX_SERVICE"
   fi
 fi
 
 # Fcitx5 (IME)
 install_file "$SRC_HOME/.config/environment.d/90-fcitx5.conf" "$HOME/.config/environment.d/90-fcitx5.conf" 0644
-install_file "$SRC_HOME/.config/environment.d/fcitx.conf" "$HOME/.config/environment.d/fcitx.conf" 0644
 
 # GTK (key theme / window controls)
 install_file "$SRC_HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini" 0644
@@ -821,102 +825,42 @@ else
   log "note: skipping GTK gsettings (--no-gtk-gsettings)"
 fi
 
-# Hyprland user configs
-install_file "$SRC_HOME/.config/hypr/bindings.conf" "$HOME/.config/hypr/bindings.conf" 0644
-install_file "$SRC_HOME/.config/hypr/hypridle.conf" "$HOME/.config/hypr/hypridle.conf" 0644
-install_file "$SRC_HOME/.config/hypr/input.conf" "$HOME/.config/hypr/input.conf" 0644
-install_file "$SRC_HOME/.config/hypr/opacity.conf" "$HOME/.config/hypr/opacity.conf" 0644
+# Install dedicated Quattro modules without replacing the user's standard modules.
+for src in "$SRC_HOME"/.config/hypr/*.lua "$SRC_HOME"/.config/hypr/*.xkb; do
+  [[ -f "$src" ]] || continue
+  install_file "$src" "$HOME/.config/hypr/$(basename "$src")" 0644
+done
 
-ensure_source_line "$HOME/.config/hypr/hyprland.conf" \
-  'source = ~/.config/hypr/opacity.conf' \
-  '^source\s*=\s*~/.config/hypr/looknfeel\.conf\s*$'
+# JSON status producers retain their command names but are consumed by Quickshell.
+for src in "$SRC_HOME"/.local/bin/*; do
+  [[ -f "$src" ]] || continue
+  install_file "$src" "$HOME/.local/bin/$(basename "$src")" 0755
+done
 
-# Optional monitors.conf (machine-specific)
-if (( FORCE_MONITORS )); then
-  install_file "$SRC_HOME/.config/hypr/monitors.conf" "$HOME/.config/hypr/monitors.conf" 0644
-else
-  if hyprctl_has_monitor "DP-4"; then
-    install_file "$SRC_HOME/.config/hypr/monitors.conf" "$HOME/.config/hypr/monitors.conf" 0644
-  else
-    log "skip: ~/.config/hypr/monitors.conf (DP-4 not detected; use --force-monitors)"
-  fi
-fi
+configure_hyprland
 
-# Optional NVIDIA envs (hardware-specific)
-if (( SKIP_NVIDIA_ENV )); then
-  log "skip: ~/.config/hypr/envs.conf (--skip-nvidia-env)"
-else
-  if (( FORCE_NVIDIA_ENV )) || detect_nvidia; then
-    install_file "$SRC_HOME/.config/hypr/envs.conf" "$HOME/.config/hypr/envs.conf" 0644
-    ensure_source_line "$HOME/.config/hypr/hyprland.conf" \
-      'source = ~/.config/hypr/envs.conf' \
-      '^source\s*=\s*~/.local/share/omarchy/default/hypr/envs\.conf\s*$'
-  else
-    log "skip: ~/.config/hypr/envs.conf (NVIDIA not detected; use --force-nvidia-env)"
-  fi
-fi
-
-# Hypr helper scripts
-  install_file "$SRC_HOME/.local/bin/fcitx-en-toggle" "$HOME/.local/bin/fcitx-en-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-ws" "$HOME/.local/bin/hypr-ws" 0755
-  install_file "$SRC_HOME/.local/bin/hyprsunset-adjust" "$HOME/.local/bin/hyprsunset-adjust" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-opacity-adjust" "$HOME/.local/bin/hypr-opacity-adjust" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-blur-adjust" "$HOME/.local/bin/hypr-blur-adjust" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-gaps-adjust" "$HOME/.local/bin/hypr-gaps-adjust" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-scale-adjust" "$HOME/.local/bin/hypr-scale-adjust" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-refresh-toggle" "$HOME/.local/bin/hypr-refresh-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-main-monitor-toggle" "$HOME/.local/bin/hypr-main-monitor-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-monitor-position" "$HOME/.local/bin/hypr-monitor-position" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-internal-display-toggle" "$HOME/.local/bin/hypr-internal-display-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-lid-suspend-toggle" "$HOME/.local/bin/hypr-lid-suspend-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-keyboard-clean-toggle" "$HOME/.local/bin/hypr-keyboard-clean-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/hypr-cursor-invisible-toggle" "$HOME/.local/bin/hypr-cursor-invisible-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/ddc-brightness" "$HOME/.local/bin/ddc-brightness" 0755
-  install_file "$SRC_HOME/.local/bin/bt-roba" "$HOME/.local/bin/bt-roba" 0755
-  install_file "$SRC_HOME/.local/bin/bluez-agent-auto" "$HOME/.local/bin/bluez-agent-auto" 0755
-  install_file "$SRC_HOME/.local/bin/bluez-discovery-keepalive" "$HOME/.local/bin/bluez-discovery-keepalive" 0755
-  install_file "$SRC_HOME/.local/bin/wwan-latency-switcher" "$HOME/.local/bin/wwan-latency-switcher" 0755
-
-# systemd user service for lid toggle
-install_file "$SRC_HOME/.config/systemd/user/lid-nosuspend.service" "$HOME/.config/systemd/user/lid-nosuspend.service" 0644
+# Preserve the enabled/disabled state of the user's optional services.
+for src in "$SRC_HOME"/.config/systemd/user/*.service; do
+  install_file "$src" "$HOME/.config/systemd/user/$(basename "$src")" 0644
+done
+run systemctl --user daemon-reload
 
 # Fcitx5: cskk addon depends on libcskk (cskk-git installs it under /usr/lib/cskk).
 # Make libcskk.so.3 discoverable via ld.so.conf.d so fcitx5-cskk loads regardless
 # of how fcitx5 is launched.
 ensure_libcskk_ldconfig
 
-if command -v systemctl >/dev/null 2>&1; then
-  if (( FCITX_WAS_ACTIVE )); then
-    # Start fcitx5 again now that configs are installed.
-    run systemctl --user start "$FCITX_SERVICE" >/dev/null 2>&1 || true
-  fi
-fi
+restart_fcitx
 
-# Waybar (optional)
-if (( NO_WAYBAR )); then
-  log "skip: Waybar (--no-waybar)"
+# Quattro shell custom widgets and idle behavior.
+if (( NO_BAR )); then
+  log "skip: shell widgets and idle settings (--no-bar)"
 else
-  install_file "$SRC_HOME/.local/bin/waybar-fcitx-en" "$HOME/.local/bin/waybar-fcitx-en" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-main-monitor" "$HOME/.local/bin/waybar-main-monitor" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-ddc-brightness" "$HOME/.local/bin/waybar-ddc-brightness" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-lid-suspend" "$HOME/.local/bin/waybar-lid-suspend" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-keyboard-clean" "$HOME/.local/bin/waybar-keyboard-clean" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-cursor-invisible" "$HOME/.local/bin/waybar-cursor-invisible" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-bt-roba" "$HOME/.local/bin/waybar-bt-roba" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-bt-roba-toggle" "$HOME/.local/bin/waybar-bt-roba-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-wwan" "$HOME/.local/bin/waybar-wwan" 0755
-  install_file "$SRC_HOME/.local/bin/wwan-menu" "$HOME/.local/bin/wwan-menu" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-tailscale" "$HOME/.local/bin/waybar-tailscale" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-tailscale-toggle" "$HOME/.local/bin/waybar-tailscale-toggle" 0755
-  install_file "$SRC_HOME/.local/bin/waybar-tailscale-peers" "$HOME/.local/bin/waybar-tailscale-peers" 0755
-  install_file "$SRC_HOME/.config/waybar/config.jsonc" "$HOME/.config/waybar/config.jsonc" 0644
-  install_file "$SRC_HOME/.config/waybar/style.css" "$HOME/.config/waybar/style.css" 0644
-
-  if command -v omarchy-restart-waybar >/dev/null 2>&1; then
-    run omarchy-restart-waybar >/dev/null 2>&1 || true
-  else
-    log "note: restart waybar manually (e.g. omarchy-restart-waybar)"
-  fi
+  while IFS= read -r -d '' src; do
+    rel="${src#"$SRC_HOME/"}"
+    install_file "$src" "$HOME/$rel" 0644
+  done < <(find "$SRC_HOME/.config/omarchy/plugins" -type f -print0)
+  configure_shell
 fi
 
 # Optional shaders directory
@@ -933,9 +877,20 @@ if (( WITH_SHADERS )); then
   fi
 fi
 
-# Trigger reloads when possible
+# Report configuration errors rather than leaving an apparently successful install.
 if command -v hyprctl >/dev/null 2>&1; then
-  run hyprctl reload >/dev/null 2>&1 || true
+  run hyprctl reload
+  if (( ! DRY_RUN )); then
+    config_errors=$(hyprctl configerrors)
+    if [[ -n "$config_errors" && "$config_errors" != "ok" ]]; then
+      log "$config_errors"
+      exit 1
+    fi
+  fi
+fi
+if (( ! NO_BAR )); then
+  # A fresh shell is required to replace cached plugin components reliably.
+  run omarchy restart shell
 fi
 
 log "Done. Backups are saved as *.bak.YYYYmmdd-HHMMSS next to the originals."

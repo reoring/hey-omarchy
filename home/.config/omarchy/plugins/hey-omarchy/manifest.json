@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "hey-omarchy",
+  "name": "Hey Omarchy",
+  "version": "1.0.0",
+  "author": "reoring",
+  "description": "Personal monitor, input, hardware, CPU, and network controls with shared status polling.",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Widget.qml"
+  },
+  "barWidget": {
+    "displayName": "Hey Omarchy control",
+    "category": "Status",
+    "allowMultiple": true,
+    "defaultSection": "right",
+    "defaults": { "name": "main-monitor" },
+    "schema": [
+      {
+        "key": "name",
+        "type": "enum",
+        "label": "Control",
+        "defaultValue": "main-monitor",
+        "options": ["main-monitor", "ddc-brightness", "fcitx-en", "lid", "keyboard-clean", "cursor-invisible", "bt-roba", "wwan", "tailscale", "cpu"]
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "idle": {
+    "lock": 900,
+    "screensaver": 960,
+    "dpms": 960
+  },
+  "plugins": [
+    { "id": "hey-omarchy" },
+    { "id": "hey-omarchy-lock" }
+  ],
+  "disabledPlugins": ["omarchy.lock"],
+  "cloneSourceRestores": ["hey-omarchy-lock"],
+  "barAdditions": [
+    { "section": "right", "before": "omarchy.bluetooth", "entry": { "id": "hey-omarchy", "name": "tailscale" } },
+    { "section": "right", "before": "omarchy.bluetooth", "entry": { "id": "hey-omarchy", "name": "bt-roba" } },
+    { "section": "right", "before": "omarchy.network", "entry": { "id": "hey-omarchy", "name": "wwan" } },
+    { "section": "right", "before": "omarchy.monitor", "entry": { "id": "hey-omarchy", "name": "cpu" } },
+    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "ddc-brightness" } },
+    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "main-monitor" } },
+    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "lid" } },
+    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "fcitx-en" } },
+    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "keyboard-clean" } },
+    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "cursor-invisible" } }
+  ]
+}

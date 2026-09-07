@@ -2,6 +2,7 @@
 set -euo pipefail
 
 DRY_RUN=0
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<'EOF'
@@ -102,53 +103,33 @@ restore_one() {
 log "Rolling back reoring customizations in: $HOME"
 
 dests=(
-  "$HOME/.config/environment.d/90-fcitx5.conf"
-  "$HOME/.config/environment.d/fcitx.conf"
-  "$HOME/.config/gtk-3.0/settings.ini"
-  "$HOME/.config/gtk-4.0/settings.ini"
-  "$HOME/.config/fcitx5/config"
-  "$HOME/.config/fcitx5/profile"
-  "$HOME/.config/fcitx5/conf/clipboard.conf"
-  "$HOME/.config/fcitx5/conf/notifications.conf"
-  "$HOME/.config/fcitx5/conf/xcb.conf"
-  "$HOME/.config/fcitx5/conf/fcitx5-cskk"
+  "$HOME/.config/hypr/hyprland.lua"
+  "$HOME/.config/hypr/hey-omarchy-options.lua"
+  "$HOME/.config/omarchy/shell.json"
   "$HOME/.local/share/libcskk/rules/metadata.toml"
   "$HOME/.local/share/libcskk/rules/default/rule.toml"
   "$HOME/.local/share/libcskk/rules/azik/rule.toml"
   "$HOME/.local/share/libcskk/rules/passthrough_ascii/rule.toml"
-
-  "$HOME/.config/hypr/bindings.conf"
-  "$HOME/.config/hypr/hypridle.conf"
-  "$HOME/.config/hypr/input.conf"
-  "$HOME/.config/hypr/monitors.conf"
-  "$HOME/.config/hypr/envs.conf"
-
-  "$HOME/.local/bin/hypr-ws"
-  "$HOME/.local/bin/hyprsunset-adjust"
-  "$HOME/.local/bin/hypr-opacity-adjust"
-  "$HOME/.local/bin/hypr-blur-adjust"
-  "$HOME/.local/bin/hypr-gaps-adjust"
-  "$HOME/.local/bin/hypr-scale-adjust"
-  "$HOME/.local/bin/hypr-refresh-toggle"
-  "$HOME/.local/bin/hypr-main-monitor-toggle"
-  "$HOME/.local/bin/hypr-monitor-position"
-  "$HOME/.local/bin/hypr-internal-display-toggle"
-  "$HOME/.local/bin/hypr-lid-suspend-toggle"
-  "$HOME/.local/bin/hypr-keyboard-clean-toggle"
-  "$HOME/.local/bin/hypr-cursor-invisible-toggle"
-
-  "$HOME/.config/systemd/user/lid-nosuspend.service"
-
-  "$HOME/.local/bin/waybar-main-monitor"
-  "$HOME/.local/bin/waybar-lid-suspend"
-  "$HOME/.local/bin/waybar-keyboard-clean"
-  "$HOME/.local/bin/waybar-cursor-invisible"
-  "$HOME/.config/waybar/config.jsonc"
-  "$HOME/.config/waybar/style.css"
 )
+while IFS= read -r -d '' src; do
+  rel="${src#"$ROOT/home/"}"
+  [[ "$rel" == ".config/omarchy/hey-omarchy.json" ]] && continue
+  dests+=("$HOME/$rel")
+done < <(find "$ROOT/home" -type f -print0)
 
 for dest in "${dests[@]}"; do
   restore_one "$dest"
 done
+
+run systemctl --user daemon-reload
+run hyprctl reload
+if (( ! DRY_RUN )); then
+  config_errors=$(hyprctl configerrors)
+  if [[ -n "$config_errors" && "$config_errors" != "ok" ]]; then
+    log "$config_errors"
+    exit 1
+  fi
+fi
+run omarchy restart shell
 
 log "Done."

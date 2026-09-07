@@ -10,6 +10,9 @@ trap 'rm -rf "$tmp"' EXIT
 home="$tmp/home"
 bindir="$tmp/bin"
 mkdir -p "$home" "$bindir"
+omarchy_root="$tmp/omarchy"
+mkdir -p "$omarchy_root/default/hypr"
+printf '%s\n' "-- native configuration fixture" >"$omarchy_root/default/hypr/bootstrap.lua"
 
 write_stub() {
   local name="$1"
@@ -26,15 +29,26 @@ write_stub() {
 write_stub systemctl 'exit 0'
 write_stub hyprctl 'case "${1:-}" in monitors) printf "%s\n" "[]" ;; *) exit 0 ;; esac'
 write_stub notify-send 'exit 0'
-write_stub omarchy-restart-waybar 'exit 0'
+write_stub omarchy 'exit 0'
+write_stub sudo 'exit 0'
+write_stub ldconfig 'exit 0'
 
 mkdir -p "$home/.config/hypr"
-printf '%s\n' "OLD_INPUT" >"$home/.config/hypr/input.conf"
+printf '%s\n' "-- original custom module" >"$home/.config/hypr/hey-omarchy.lua"
+printf '%s\n' "-- original user entrypoint" >"$home/.config/hypr/hyprland.lua"
+printf '%s\n' "-- independent user input settings" >"$home/.config/hypr/input.lua"
+cp "$home/.config/hypr/hey-omarchy.lua" "$tmp/original-module"
+cp "$home/.config/hypr/hyprland.lua" "$tmp/original-entrypoint"
+cp "$home/.config/hypr/input.lua" "$tmp/original-input"
 
-HOME="$home" PATH="$bindir:$PATH" bash ./apply.sh --skip-packages --no-waybar --force-monitors --skip-nvidia-env >/dev/null
+HOME="$home" OMARCHY_PATH="$omarchy_root" PATH="$bindir:$PATH" bash ./apply.sh --skip-packages --no-bar --no-gtk-gsettings --skip-nvidia-env >/dev/null
 
-if grep -Fxq "OLD_INPUT" "$home/.config/hypr/input.conf"; then
-  printf '%s\n' "expected input.conf to be overwritten by apply.sh" >&2
+if cmp -s "$tmp/original-module" "$home/.config/hypr/hey-omarchy.lua"; then
+  printf '%s\n' "expected the bundled customization module to be installed" >&2
+  exit 1
+fi
+if ! cmp -s "$tmp/original-input" "$home/.config/hypr/input.lua"; then
+  printf '%s\n' "apply must preserve unrelated user input settings" >&2
   exit 1
 fi
 
@@ -50,9 +64,10 @@ if [[ $st -ne 0 ]]; then
   exit 1
 fi
 
-if ! grep -Fxq "OLD_INPUT" "$home/.config/hypr/input.conf"; then
-  printf '%s\n' "expected rollback to restore original input.conf" >&2
+if ! cmp -s "$tmp/original-module" "$home/.config/hypr/hey-omarchy.lua" \
+  || ! cmp -s "$tmp/original-entrypoint" "$home/.config/hypr/hyprland.lua"; then
+  printf '%s\n' "expected rollback to restore module and user entrypoint" >&2
   exit 1
 fi
 
-printf '%s\n' "PASS: rollback restores input.conf"
+printf '%s\n' "PASS: rollback restores Quattro customizations"

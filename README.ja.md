@@ -1,130 +1,102 @@
-# omarchy-reoring-taisyo
+# Hey Omarchy — Quattro 対応
 
-Omarchy (Hyprland) の標準設定に、reoring のカスタム設定/スクリプトを上書き適用するためのバンドルです。
+reoring の個人設定を **Omarchy Quattro（4.x）** に適用するバンドルです。Hyprland のネイティブ Lua と Quickshell を使用し、Omarchy 3 向けの `.conf` や Waybar 設定はインストールしません。
 
-このディレクトリは `~/.local/share/omarchy/`（Omarchy 管理ファイル）には触れず、ユーザー設定 (`~/.config/*`, `~/.local/bin/*`) のみを更新します。
+Omarchy 管理下のソースは変更しません。`apply.sh` は変更前のユーザーファイルをバックアップし、専用 Lua モジュールを読み込む行を追加します。既存の標準 Lua モジュールやバーの標準ウィジェット、無関係な `shell.json` 設定は保持します。
 
-`apply.sh` は `home/` 以下を `$HOME` にコピーし、上書き前にタイムスタンプ付きバックアップを作成します。
+関連: [English README](README.md)、[ショートカット一覧](user-guide.ja.md)、[CSKK の説明](japanese/cskk.md)。
 
-ドキュメント:
+## 引き継ぐ機能
 
-- English README: `README.md`
-- Hyprland ショートカットガイド: `docs/user-guide.md` (EN) / `user-guide.ja.md` (JA)
-- CSKK メモ: `japanese/cskk.md`
+- メインモニターのワークスペース 1〜20・25、別画面への parking 99〜90、1画面時の 11〜20 フォールバック。Shift 併用でウィンドウ移動。
+- 右 Alt とかなキーによるワークスペース操作。Lua では `ALT`（Mod1）を使用します。旧 `ALTGR` 表記の実際の挙動と同じで、左 Alt にも反応します。Lua に `ALTGR` と書くことはできません。
+- tmux と競合する Alt+H/J/K/L は Shift 併用も含めて割り当てなし。
+- Caps→Ctrl、かな→Alt_R、キーリピート 40/600、自然スクロール 0.4、入力中のタッチパッド操作。
+- Super+H/J/K/L のフォーカス移動、個人用アプリ・Web アプリ起動、透明度、ブラー、余白、画面スケール・位置・リフレッシュレート、夜間モード。
+- メインモニター、DDC 輝度、JP/EN、ふた閉じサスペンド、キーボード清掃、カーソル、roBa、WWAN、Tailscale、CPU/btop のネイティブバー操作。
+- 無操作15分でロック、16分で画面オフ。先行するスクリーンセーバーなし。復帰時に明るさを復元。
+- ディスプレイ・タッチ・ペンの自動回転。サービスの有効・無効状態は保持。
+- Fcitx5/CSKK の ASCII パススルー、日本語入力設定、GTK の Emacs 風キー操作。
 
-## 何ができるか（要点）
+`waybar-*` という名前の補助コマンドは、Quickshell が読む JSON ステータス生成器として使います。Waybar/Walker 本体は不要です。
 
-- AltGr を使ったワークスペース運用（"main monitor" 概念 + もう一方に parking ワークスペース）
-- vim 風フォーカス移動（`Super+H/J/K/L`）と、`hypr-*` の各種調整/トグル（opacity/blur/gaps/scale/refresh/nightlight など）
-- Waybar に "main monitor" / DDC 輝度 / fcitx ENグループ切替 / ふた閉じサスペンド / キーボード掃除モード / マウスポインター表示状態を表示（クリックでトグル、外部モニター位置メニューあり）
-- ハードウェア依存の設定を必要時のみ適用:
-  - `monitors.conf` は `DP-4` を検出したときだけ適用（または `--force-monitors`）
-  - `envs.conf` は NVIDIA を検出したときだけ適用（または `--force-nvidia-env`）。さらに `apply.sh` が `~/.config/hypr/hyprland.conf` に source 行を追加します
+## 設定ファイル
 
-## 含まれるもの（ファイル）
+| 場所 | 内容 |
+|---|---|
+| `~/.config/hypr/hey-omarchy.lua` | 入力、透明度・ウィンドウルール、ハードウェア条件 |
+| `~/.config/hypr/hey-omarchy-bindings.lua` | キーバインド。標準の競合キーは明示的に解除 |
+| `~/.config/hypr/keymap-kana-altgr.xkb` | かな・Caps キーマップ |
+| `~/.config/hypr/hey-omarchy-options.lua` | インストーラーが生成する画面/NVIDIA オプション |
+| `~/.config/omarchy/shell.json` | 既存バーに独自ウィジェットを追加、アイドル設定 |
+| `~/.config/omarchy/plugins/hey-omarchy/` | 共有ステータスサービスとバー部品 |
+| `~/.config/omarchy/plugins/hey-omarchy-lock/` | 元の画面オフ時間を再現するロック部品 |
+| `~/.local/bin/` | 操作・入力・ネットワーク・ハードウェア補助コマンド |
+| `~/.config/systemd/user/` | ふた閉じ抑止と自動回転のサービス |
 
-- Fcitx5
-  - `~/.config/environment.d/90-fcitx5.conf`, `~/.config/environment.d/fcitx.conf`（IME の環境変数）
-  - `~/.config/fcitx5/config`, `~/.config/fcitx5/profile`（ホットキー + デフォルトIM）
-  - `~/.config/fcitx5/conf/*.conf`（アドオンの小さな調整）
-  - `~/.config/fcitx5/conf/fcitx5-cskk`（CSKK 設定: Ascii パススルー用ルールを選択）
-  - `~/.local/share/libcskk/rules/*`（CSKK ルール生成: `@` でもキーイベントをアプリへ渡す）
-- Hyprland
-  - `~/.config/hypr/bindings.conf`（AltGr ワークスペース運用、vim風フォーカス移動、各種調整キーなど）
-  - `~/.config/hypr/hypridle.conf`（ロック/DPMS タイムアウトの調整）
-  - `~/.config/hypr/input.conf`（Caps→Ctrl、タッチパッド自然スクロール）
-  - `~/.config/hypr/monitors.conf`（DP-4 を想定した追加設定。自動検出/強制オプションあり）
-  - `~/.config/hypr/envs.conf`（NVIDIA向け env。自動検出/強制オプションあり）
-- Waybar
-  - `~/.config/waybar/config.jsonc`（main monitor / DDC 輝度 / fcitx EN / lid / keyboard cleaning / pointer visibility の custom モジュール追加）
-  - `~/.config/waybar/style.css`（上記モジュールにCSS適用）
-  - `~/.local/bin/waybar-main-monitor`, `~/.local/bin/waybar-ddc-brightness`, `~/.local/bin/waybar-fcitx-en`, `~/.local/bin/waybar-lid-suspend`, `~/.local/bin/waybar-keyboard-clean`, `~/.local/bin/waybar-cursor-invisible`
-- systemd (user)
-  - `~/.config/systemd/user/lid-nosuspend.service`（lid close の suspend を inhibit するトグル用）
-- System
-  - `/etc/ld.so.conf.d/cskk.conf`（`cskk-git` 利用時に `fcitx5-cskk` が `libcskk.so.3` を見つけられるよう `/usr/lib/cskk` を登録。apply 時に sudo で書き込み)
-- スクリプト
-  - `~/.local/bin/fcitx-en-toggle`（fcitx5 のグループ切替: cskkのみ <-> cskk+keyboard-us）
-  - `~/.local/bin/hypr-ws`（main/park 概念でワークスペース移動）
-  - `~/.local/bin/hypr-monitor-position`（外部モニター位置を設定: left/right/up/down）
-  - `~/.local/bin/ddc-brightness`（DDC/CI 対応モニターの輝度調整: get/set/up/down）
-  - `~/.local/bin/hypr-*-adjust` / `hypr-*-toggle`（opacity/blur/gaps/scale/refresh/main-monitor/internal-display/lid/keyboard-clean/cursor-invisible）
+ロック部品は **Omarchy 4.0.2** のユーザー側コピーです。認証・セッションロックは元実装を使用し、`idle.dpms` で画面オフ時間を設定します。ローカルコピーはパッケージ更新で自動更新されないため、今後 Omarchy のロック実装が変わったら差分を確認・追従してください。
 
-補足:
+## 適用
 
-- fcitx ENグループ切替はデフォルトで `Super+Ctrl+J` に割り当て、Waybar の `JP/EN` モジュールからも切り替えできます。
-- `apply.sh` は `~/.config/fcitx5/*` のインストール中に fcitx5 を一時停止し、終了時の autosave による設定上書きを避けます。
-- NVIDIA env を適用する場合、`apply.sh` は `~/.config/hypr/hyprland.conf` に `source = ~/.config/hypr/envs.conf` を挿入/追記することがあります。
-- キーバインドは個人設定寄りです（Spotify/Signal/1Password/Web アプリなど）。必要に応じて `~/.config/hypr/bindings.conf` を編集してください（ショートカットガイド参照）。
-- 外部モニター名が `DP-4` でない場合は `home/.config/hypr/monitors.conf` を調整し、`--force-monitors` で適用してください。
-
-## 使い方
-
-このディレクトリで:
-
-任意（DDC 輝度を使う場合のセットアップ: `i2c-dev` + udev rules）:
-
-```sh
-bash ./setup-ddcutil.sh
-```
-
-```sh
-bash ./apply.sh
-```
-
-事前チェック（変更なし）:
+このディレクトリで実行します。
 
 ```sh
 bash ./apply.sh --check
+bash ./apply.sh --dry-run --skip-packages
+bash ./apply.sh --skip-packages
 ```
 
-同じコマンドを再実行しても安全です（差分がないファイルはスキップされます）。
+入力メソッドや DDC の依存パッケージも必要なら `--skip-packages` を外します。適用時は稼働中の `omarchy-fcitx5.service` を短時間再起動し、Hyprland の再読み込み・エラー確認後、古い QML キャッシュを残さないようシェルを再起動します。アプリやログインセッションは終了しません。
 
-オプション:
+同一内容のファイルはスキップします。再適用で独自ウィジェットが増殖したり、変更した配置・個別設定が初期化されたりしません。ただしアイドル時間などバンドル管理の値は再適用するため、変更はバンドル側にも保存してください。旧 `.conf` や Quattro 移行時バックアップは削除しません。
 
-- `--check` 環境/リポジトリの事前チェックだけ実行して終了
-- `--dry-run` 変更内容だけ表示
-- `--skip-packages` yay によるパッケージ導入をスキップ
-- `--gtk-gsettings` GTK の設定を gsettings にも反映（Emacs風キー + ウィンドウボタン配置）。デフォルトで有効
-- `--no-gtk-gsettings` GTK の gsettings 反映を行わない
-- `--no-waybar` Waybar関連をスキップ
-- `--with-shaders` `~/.config/hypr/shaders` を `/usr/share/aether/shaders` からsymlink生成
-- `--force-monitors` `~/.config/hypr/monitors.conf` を強制適用（未検出でも）
-- `--force-nvidia-env` `~/.config/hypr/envs.conf` を強制適用（未検出でも）
-- `--skip-nvidia-env` NVIDIA env 適用を常にスキップ
+### オプション
 
-## 前提 / 依存
+- `--check`: ファイルとコマンドを確認。ユーザー設定の変更なし。
+- `--dry-run`: 予定される操作だけ表示。
+- `--skip-packages`: yay のパッケージ導入を省略。
+- `--no-bar`: シェルのウィジェットとアイドル設定を省略。
+- `--gtk-gsettings` / `--no-gtk-gsettings`: GTK 設定の反映を有効/無効化（標準は有効）。
+- `--force-monitors`: preferred 解像度・自動配置・自動スケールの汎用設定を適用。通常は既存 `monitors.lua` を保持。
+- `--force-nvidia-env` / `--skip-nvidia-env`: NVIDIA 自動判定を上書き。通常の AMD/Intel 環境には NVIDIA 変数を設定しません。
+- `--with-shaders`: Aether のシェーダーへのユーザー側シンボリックリンクを作成。
 
-- Omarchy + Hyprland 環境（`omarchy-launch-*` など Omarchy の helper を呼びます）
-- よく使うコマンド: `bash`, `install`, `python`（3系）, `hyprctl`, `jq`, `systemctl --user`, `notify-send`, `walker`（または `fzf`）
-- `yay`（デフォルトで fcitx5 関連パッケージをインストールします。不要なら `--skip-packages`）
-- 任意（DDC 輝度）: `ddcutil`（`apply.sh` が通常は導入します。不要なら `--skip-packages`。`setup-ddcutil.sh` は udev rules もセットアップ）
-- Waybar（Waybar 関連を適用する場合）
+### 任意のハードウェア設定
 
-## カスタマイズ
+```sh
+bash ./setup-ddcutil.sh
+bash ./setup-wwan-latency-switcher.sh --help
+bash ./setup-mpvpaper-live-wallpaper.sh --help
+```
 
-- `home/` 以下を編集して `bash ./apply.sh` を再実行するか、適用後の `~/.config/` / `~/.local/bin/` を直接編集してください。
+DDC は対応外部モニター、WWAN はモデムと関連ツールが必要です。未接続・未対応ならその状態を表示します。自動回転には iio-sensor-proxy の `monitor-sensor` が必要です。
 
-適用後:
+CSKK が必要とする場合のみ、従来どおり sudo で `/etc/ld.so.conf.d/cskk.conf` に `/usr/lib/cskk` を登録します。詳細は CSKK の説明を参照してください。
 
-- Hyprland: 通常は自動リロードしますが、必要なら `hyprctl reload`
-- Waybar: `omarchy-restart-waybar`（`apply.sh` が可能なら自動実行）
+## 確認とカスタマイズ
+
+```sh
+hyprctl configerrors
+omarchy shell hey-omarchy status
+omarchy shell idle status
+omarchy shell lock status
+bash tests/run.sh
+```
+
+`home/` 以下を変更して再適用するか、ユーザー側のインストール済みファイルを編集します。`home/.config/omarchy/hey-omarchy.json` はマージ用の断片であり、`shell.json` 全体の置き換えではありません。
+
+`Super+Ctrl+Y` は Quattro のバー表示切替、`Super+Ctrl+Alt+O` は自動回転の切替です。標準から変更されるキーはショートカット一覧を参照してください。
 
 ## ロールバック
 
-上書き前に `*.bak.YYYYmmdd-HHMMSS` を同じパスに作成します。
-
-このリポジトリが管理するファイルについて、最新バックアップへ戻す:
-
-```sh
-bash ./rollback.sh
-```
-
-dry-run:
+変更前のファイルは隣に `*.bak.YYYYmmdd-HHMMSS` として保存します。
 
 ```sh
 bash ./rollback.sh --dry-run
+bash ./rollback.sh
 ```
+
+Lua の読み込み元とシェル設定を含め、管理対象の最新バックアップを復元して Hyprland とシェルを再読み込みします。元ファイルが存在しなかった新規ファイルは残します。戻すのは個人設定バンドルであり、**Quattro のシステムアップグレードではありません**。
 
 ## ライセンス
 

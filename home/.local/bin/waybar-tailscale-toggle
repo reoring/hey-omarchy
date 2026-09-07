@@ -19,4 +19,4 @@ case "$backend_state" in
 esac
 
 sleep 1
-pkill -RTMIN+12 waybar
+omarchy-shell hey-omarchy refresh tailscale >/dev/null 2>&1 || true

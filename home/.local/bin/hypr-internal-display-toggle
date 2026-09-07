@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
+
 # Toggle the internal (laptop) display.
 # - If the internal display is disabled, enable it.
 # - If the internal display is enabled, disable it only when at least one
@@ -26,7 +28,7 @@ internal_disabled=$(echo "$monitors_json" | jq -r --arg m "$internal" '.[] | sel
 
 # If internal is currently disabled, always allow enabling it (recovery path).
 if [[ "$internal_disabled" == "true" ]]; then
-  hyprctl keyword monitor "${internal},preferred,auto,auto" >/dev/null
+  hypr_eval "hl.monitor({ output = $(hypr_lua_string "$internal"), disabled = false, mode = \"preferred\", position = \"auto\", scale = \"auto\" })"
   notify-send "Display" "${internal}: enabled" -t 1500
   exit 0
 fi
@@ -38,5 +40,5 @@ if [[ "$external_active_count" == "0" ]]; then
   exit 0
 fi
 
-hyprctl keyword monitor "${internal},disable" >/dev/null
+hypr_eval "hl.monitor({ output = $(hypr_lua_string "$internal"), disabled = true })"
 notify-send "Display" "${internal}: disabled" -t 1500

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 STATE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/hypr-keyboard-clean-mode"
-WAYBAR_KEYBOARD_CLEAN_SIGNAL="${WAYBAR_KEYBOARD_CLEAN_SIGNAL:-13}"
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
 
 notify() {
   local message="$1"
@@ -11,8 +11,8 @@ notify() {
   fi
 }
 
-refresh_waybar() {
-  pkill -RTMIN+"$WAYBAR_KEYBOARD_CLEAN_SIGNAL" waybar >/dev/null 2>&1 || true
+refresh_shell() {
+  omarchy-shell hey-omarchy refresh keyboard-clean >/dev/null 2>&1 || true
 }
 
 usage() {
@@ -56,30 +56,10 @@ set_keyboard_enabled() {
   local keyboard="$1"
   local enabled="$2"
 
-  local num_value="0"
-  local bool_value="false"
-  if [[ "$enabled" == "1" ]]; then
-    num_value="1"
-    bool_value="true"
-  fi
-
-  local -a keywords=(
-    "device[$keyboard]:enabled"
-    "device:$keyboard:enabled"
-  )
-  local output
-  local status
-  local keyword
-  local value
-  for keyword in "${keywords[@]}"; do
-    for value in "$num_value" "$bool_value"; do
-      output="$(hyprctl keyword "$keyword" "$value" 2>&1)" && status=0 || status=$?
-      if (( status == 0 )) && [[ -z "$output" || "$output" == ok* ]]; then
-        return 0
-      fi
-    done
-  done
-  return 1
+  local value=false quoted
+  [[ "$enabled" == "1" ]] && value=true
+  quoted=$(hypr_lua_string "$keyboard") || return
+  hypr_eval "hl.device({ name = $quoted, enabled = $value })"
 }
 
 enable_cleaning_mode() {
@@ -110,6 +90,7 @@ enable_cleaning_mode() {
   write_state_on "${succeeded[@]}"
   if (( ${#failed[@]} > 0 )); then
     notify "ON (partial): ${#succeeded[@]} disabled, ${#failed[@]} failed"
+    return 1
   else
     notify "ON: ${#succeeded[@]} keyboard(s) disabled"
   fi
@@ -190,5 +171,5 @@ else
   disable_cleaning_mode || rc=$?
 fi
 
-refresh_waybar
+refresh_shell
 exit "$rc"

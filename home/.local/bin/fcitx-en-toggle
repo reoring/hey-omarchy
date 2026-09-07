@@ -5,7 +5,6 @@ GROUP_NO_EN="${FCITX_GROUP_NO_EN:-Default}"
 GROUP_WITH_EN="${FCITX_GROUP_WITH_EN:-WithEn}"
 DEFAULT_IM="${FCITX_GROUP_DEFAULT_IM:-cskk}"
 
-WAYBAR_FCITX_EN_SIGNAL="${WAYBAR_FCITX_EN_SIGNAL:-16}"
 
 action="${1:-toggle}"
 
@@ -18,7 +17,7 @@ Switch between fcitx5 input method groups:
   - ${GROUP_WITH_EN} (cskk + keyboard-us)
 
 Environment overrides:
-  FCITX_GROUP_NO_EN, FCITX_GROUP_WITH_EN, FCITX_GROUP_DEFAULT_IM, WAYBAR_FCITX_EN_SIGNAL
+  FCITX_GROUP_NO_EN, FCITX_GROUP_WITH_EN, FCITX_GROUP_DEFAULT_IM
 EOF
 }
 
@@ -112,8 +111,8 @@ notify() {
   fi
 }
 
-refresh_waybar() {
-  pkill -RTMIN+"$WAYBAR_FCITX_EN_SIGNAL" waybar >/dev/null 2>&1 || true
+refresh_shell() {
+  omarchy-shell hey-omarchy refresh fcitx-en >/dev/null 2>&1 || true
 }
 
 if [[ "$action" == "-h" || "$action" == "--help" ]]; then
@@ -134,12 +133,12 @@ case "$action" in
   on|enable)
     set_group "$GROUP_WITH_EN"
     notify "EN enabled (group: $GROUP_WITH_EN)"
-    refresh_waybar
+    refresh_shell
     ;;
   off|disable)
     set_group "$GROUP_NO_EN"
     notify "EN disabled (group: $GROUP_NO_EN)"
-    refresh_waybar
+    refresh_shell
     ;;
   toggle|"" )
     cur="$(current_group || true)"
@@ -150,7 +149,7 @@ case "$action" in
       set_group "$GROUP_WITH_EN"
       notify "EN enabled (group: $GROUP_WITH_EN)"
     fi
-    refresh_waybar
+    refresh_shell
     ;;
   *)
     echo "ERROR: unknown action: $action" >&2

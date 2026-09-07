@@ -40,4 +40,5 @@ elif (( next_k > MAX_K )); then
 fi
 
 hyprctl hyprsunset temperature "$next_k" >/dev/null
+omarchy-shell -q nightlight refresh >/dev/null 2>&1 || true
 notify-send "Nightlight" "Temperature: ${next_k}K" -t 1200

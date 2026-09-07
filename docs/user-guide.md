@@ -2,16 +2,16 @@
 
 This guide documents the Hyprland keybindings shipped by this repo.
 
-Source in this repo: `home/.config/hypr/bindings.conf`
-Installed to: `~/.config/hypr/bindings.conf` (via `apply.sh`)
+Source in this repo: `home/.config/hypr/hey-omarchy-bindings.lua`
+Installed to: `~/.config/hypr/hey-omarchy-bindings.lua` (via `apply.sh`)
 
 ## Modifier keys
 
 - `Super`: the Windows/Command key
-- `AltGr`: Right Alt (ISO_Level3_Shift)
+- `AltGr`: Right Alt / kana key in this guide. Native Lua uses `ALT` (Mod1), matching the old configuration; left Alt works too.
 - `code:10..19`: the number row (`1..0` on most layouts)
 
-Tip: Press `Super+I` to open Omarchy's keybinding menu (`omarchy-menu-keybindings`).
+Tip: Press `Super+I` to open Omarchy's keybinding menu (`omarchy menu keybindings`).
 
 ## App launchers
 
@@ -50,14 +50,14 @@ This setup treats one display as the "main" monitor:
 
 - `AltGr+QWERTASDFG` always targets workspaces `1..10` on the current main monitor.
 - `AltGr+ZXCVB` targets workspaces `11..15` on the main monitor.
-- `AltGr+YUIOPHJKL;` targets workspaces `16..25` on the main monitor.
+- `AltGr+YUIOP` targets `16..20`, and `AltGr+;` targets `25`. H/J/K/L and their shifted forms are left free for tmux.
 - `AltGr+1..0` targets "parking" workspaces on the non-main monitor when an external display is connected:
   - `1=99` .. `0=90`
   - If there is no second monitor, these fall back to `11..20`.
 
 Switch which monitor is considered "main" with `Super+Ctrl+M`.
 
-Tip (Waybar): if you install this repo's Waybar config, the "main monitor" module is clickable:
+The Quattro bar's main-monitor widget is clickable:
 
 - Left click: toggle main monitor
 - Right click: set external monitor position (left/right/up/down)
@@ -72,7 +72,7 @@ You can also run `hypr-monitor-position menu` or `hypr-monitor-position left|rig
 | `AltGr+A/S/D/F/G` | Go to workspace `6/7/8/9/10` (main) |
 | `AltGr+Z/X/C/V/B` | Go to workspace `11/12/13/14/15` (main) |
 | `AltGr+Y/U/I/O/P` | Go to workspace `16/17/18/19/20` (main) |
-| `AltGr+H/J/K/L/;` | Go to workspace `21/22/23/24/25` (main) |
+| `AltGr+;` | Go to workspace `25`; H/J/K/L are unbound for tmux |
 | `AltGr+1..0` | Go to parking workspace `99..90` (fallback `11..20`) |
 
 ### Move active window
@@ -93,16 +93,21 @@ Add `Shift` to the workspace keys:
 | `Super+Shift+;` / `Super+Shift+'` | Workspace gaps down/up |
 | `Super+Shift+Ctrl+-` / `Super+Shift+Ctrl+=` | External monitor scale down/up |
 | `Super+Ctrl+R` | Toggle refresh rate (60/120 when available) |
-| `Super+Ctrl+Y` | Toggle Waybar |
+| `Super+Ctrl+Y` | Toggle the native Quattro bar |
 | `Super+Ctrl+M` | Toggle main monitor + consolidate workspaces |
 | `Super+Ctrl+P` | Toggle internal display (safe: won't disable your only monitor) |
 | `Super+Ctrl+O` | Toggle lid-close suspend (systemd user service) |
+| `Super+Ctrl+Alt+O` | Toggle automatic rotation, persisted for next login |
 
 Notes:
 
-- Opacity adjustment (`Super+Alt+-` / `Super+Alt+=`) uses window tags + `~/.config/hypr/opacity.conf` rules so it stays stable across window title changes and `hyprctl reload`.
+- Opacity adjustment (`Super+Alt+-` / `Super+Alt+=`) uses window tags and native rules in `~/.config/hypr/hey-omarchy.lua`, preserving opacity across title changes and reloads.
 
 ## Where to change things
 
-- Keybindings live in `~/.config/hypr/bindings.conf`.
+- Keybindings live in `~/.config/hypr/hey-omarchy-bindings.lua`; input and opacity rules live in `~/.config/hypr/hey-omarchy.lua`.
 - Workspace routing logic is implemented by `~/.local/bin/hypr-ws` and `~/.local/bin/hypr-main-monitor-toggle`.
+
+## Stock shortcuts overridden
+
+Super+J (split) moves to U, Super+K (keybindings) moves to I, and H/J/K/L become focus directions. Super+Ctrl+R (reminder), P (power panel), and O (menu) become refresh-rate, internal-display, and lid-suspend controls. Competing stock bindings are explicitly removed before custom bindings are installed.

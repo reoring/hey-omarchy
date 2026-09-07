@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WAYBAR_CURSOR_INVISIBLE_SIGNAL="${WAYBAR_CURSOR_INVISIBLE_SIGNAL:-14}"
+source "$(dirname "${BASH_SOURCE[0]}")/hey-hypr-common"
 
 notify() {
   local message="$1"
@@ -10,8 +10,8 @@ notify() {
   fi
 }
 
-refresh_waybar() {
-  pkill -RTMIN+"$WAYBAR_CURSOR_INVISIBLE_SIGNAL" waybar >/dev/null 2>&1 || true
+refresh_shell() {
+  omarchy-shell hey-omarchy refresh cursor-invisible >/dev/null 2>&1 || true
 }
 
 usage() {
@@ -19,64 +19,22 @@ usage() {
 }
 
 read_mode() {
-  local output int_value set_value
-
-  if ! output="$(hyprctl getoption cursor:invisible 2>/dev/null)"; then
-    printf '%s' "unknown"
-    return 1
-  fi
-
-  int_value="$(printf '%s\n' "$output" | sed -n 's/^int:[[:space:]]*//p' | head -n 1)"
-  case "$int_value" in
-    1)
-      printf '%s' "on"
-      return 0
-      ;;
-    0)
-      printf '%s' "off"
-      return 0
-      ;;
-  esac
-
-  set_value="$(printf '%s\n' "$output" | sed -n 's/^set:[[:space:]]*//p' | head -n 1)"
-  case "$set_value" in
-    true|1)
-      printf '%s' "on"
-      return 0
-      ;;
-    false|0)
-      printf '%s' "off"
-      return 0
-      ;;
-    *)
-      printf '%s' "unknown"
-      return 1
-      ;;
-  esac
+  hyprctl getoption cursor:invisible -j | jq -er '
+    if .bool == true then "on"
+    elif .bool == false then "off"
+    else error("cursor:invisible is unavailable") end'
 }
 
 set_mode() {
   local target="$1"
   local value
   case "$target" in
-    on) value="1" ;;
-    off) value="0" ;;
+    on) value="true" ;;
+    off) value="false" ;;
     *) return 2 ;;
   esac
 
-  local output
-  local status
-  output="$(hyprctl keyword cursor:invisible "$value" 2>&1)" && status=0 || status=$?
-  if (( status == 0 )) && [[ -z "$output" || "$output" == ok* ]]; then
-    return 0
-  fi
-
-  if [[ "$target" == "on" ]]; then
-    hyprctl keyword cursor:invisible true >/dev/null 2>&1 && return 0
-  else
-    hyprctl keyword cursor:invisible false >/dev/null 2>&1 && return 0
-  fi
-  return 1
+  hypr_eval "hl.config({ cursor = { invisible = $value } })"
 }
 
 action="${1:-toggle}"
@@ -120,5 +78,5 @@ else
   rc=1
 fi
 
-refresh_waybar
+refresh_shell
 exit "$rc"

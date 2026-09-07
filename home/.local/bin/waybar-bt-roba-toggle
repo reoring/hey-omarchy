@@ -21,4 +21,4 @@ else
   fi
 fi
 
-pkill -RTMIN+17 waybar >/dev/null 2>&1 || true
+omarchy-shell hey-omarchy refresh bt-roba >/dev/null 2>&1 || true

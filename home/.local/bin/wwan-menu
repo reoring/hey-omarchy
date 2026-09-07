@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WAYBAR_SIGNAL="${WAYBAR_WWAN_SIGNAL:-11}"
 WWAN_SETUP_REL="hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh"
 
 nm_unescape() {
@@ -18,8 +17,8 @@ notify() {
   fi
 }
 
-refresh_waybar() {
-  pkill -RTMIN+"$WAYBAR_SIGNAL" waybar >/dev/null 2>&1 || true
+refresh_shell() {
+  omarchy-shell hey-omarchy refresh wwan >/dev/null 2>&1 || true
 }
 
 first_gsm_device() {
@@ -87,6 +86,7 @@ find_setup_script() {
   fi
 
   candidates+=(
+    "$HOME/.local/share/hey-omarchy/$WWAN_SETUP_REL"
     "$HOME/hey-omarchy/$WWAN_SETUP_REL"
     "$HOME/.local/share/omarchy/$WWAN_SETUP_REL"
     "$HOME/.config/omarchy/$WWAN_SETUP_REL"
@@ -132,13 +132,13 @@ connect_wwan() {
   if [[ -n "$device" ]]; then
     if out=$(nmcli con up id "$target" ifname "$device" 2>&1); then
       notify "WWAN" "Connected: $target"
-      refresh_waybar
+      refresh_shell
       return 0
     fi
   else
     if out=$(nmcli con up id "$target" 2>&1); then
       notify "WWAN" "Connected: $target"
-      refresh_waybar
+      refresh_shell
       return 0
     fi
   fi
@@ -148,7 +148,7 @@ connect_wwan() {
   else
     notify "WWAN" "Connect failed: ${out:-unknown error}"
   fi
-  refresh_waybar
+  refresh_shell
   return 1
 }
 
@@ -179,11 +179,11 @@ connect_wwan_direct_mbim() {
   if (( can_run_direct )); then
     if out=$(bash "$setup_script" enable --con-name "$target" --wait 60 --direct-mbim 2>&1); then
       notify "WWAN" "Connected (direct MBIM): $target"
-      refresh_waybar
+      refresh_shell
       return 0
     fi
     notify "WWAN" "Direct MBIM failed: ${out:-unknown error}"
-    refresh_waybar
+    refresh_shell
     return 1
   fi
 
@@ -198,7 +198,7 @@ connect_wwan_direct_mbim() {
 
   if xdg-terminal-exec --title="WWAN connect (direct MBIM)" --hold bash -lc "$run_cmd"; then
     notify "WWAN" "Opened terminal for direct MBIM connection"
-    refresh_waybar
+    refresh_shell
     return 0
   fi
 
@@ -223,13 +223,13 @@ disconnect_wwan() {
   if [[ -n "$target" ]]; then
     if out=$(nmcli con down id "$target" 2>&1); then
       notify "WWAN" "Disconnected: $target"
-      refresh_waybar
+      refresh_shell
       return 0
     fi
   elif [[ -n "$device" ]]; then
     if out=$(nmcli dev disconnect "$device" 2>&1); then
       notify "WWAN" "Disconnected: $device"
-      refresh_waybar
+      refresh_shell
       return 0
     fi
   else
@@ -238,7 +238,7 @@ disconnect_wwan() {
   fi
 
   notify "WWAN" "Disconnect failed: ${out:-unknown error}"
-  refresh_waybar
+  refresh_shell
   return 1
 }
 
@@ -261,18 +261,7 @@ pick_action() {
   fi
   actions+=("Details")
 
-  if command -v walker >/dev/null 2>&1; then
-    choice=$(printf '%s\n' "${actions[@]}" | walker --dmenu --placeholder "$placeholder" 2>/dev/null || true)
-  elif command -v fzf >/dev/null 2>&1; then
-    choice=$(printf '%s\n' "${actions[@]}" | fzf --prompt='WWAN> ' --height=40% --layout=reverse 2>/dev/null || true)
-  else
-    if (( connected )); then
-      disconnect_wwan
-    else
-      connect_with_fallback
-    fi
-    return 0
-  fi
+  choice=$(omarchy menu select "$placeholder" "${actions[@]}") || return 0
 
   case "$choice" in
     Connect)
