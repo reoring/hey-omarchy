@@ -27,18 +27,20 @@ bind("SUPER + SHIFT + P", "Google Photos", { webapp = "https://photos.google.com
 bind("SUPER + SHIFT + X", "X", { webapp = "https://x.com/" })
 bind("SUPER + SHIFT + ALT + X", "X Post", { webapp = "https://x.com/compose/post" })
 
--- Legacy "ALTGR" matched ALT by substring, i.e. Mod1, not Mod5. Native Lua
--- accepts only ALT/MOD1; preserve the user's Alt_R/kana Mod1 keymap. This also
--- retains left Alt's existing behavior. H/J/K/L remain free for tmux.
+-- keyd routes kana Hyper + extra Shift to these Alt+Shift window-move bindings.
+-- H/J/K/L remain free for tmux.
+local hyper = "SUPER + CTRL + ALT + SHIFT"
 local workspace_keys = {
   "Q", "W", "E", "R", "T", "A", "S", "D", "F", "G",
   "Z", "X", "C", "V", "B", "Y", "U", "I", "O", "P",
 }
 for workspace, key in ipairs(workspace_keys) do
-  bind("ALT + " .. key, "Switch to workspace " .. workspace, "~/.local/bin/hypr-ws main goto " .. workspace)
+  hl.unbind("ALT + " .. key)
+  bind(hyper .. " + " .. key, "Switch to workspace " .. workspace, "~/.local/bin/hypr-ws main goto " .. workspace)
   bind("ALT + SHIFT + " .. key, "Move window to workspace " .. workspace, "~/.local/bin/hypr-ws main move " .. workspace)
 end
-bind("ALT + semicolon", "Switch to workspace 25", "~/.local/bin/hypr-ws main goto 25")
+hl.unbind("ALT + semicolon")
+bind(hyper .. " + semicolon", "Switch to workspace 25", "~/.local/bin/hypr-ws main goto 25")
 bind("ALT + SHIFT + semicolon", "Move window to workspace 25", "~/.local/bin/hypr-ws main move 25")
 for _, key in ipairs({ "H", "J", "K", "L" }) do
   hl.unbind("ALT + " .. key)
@@ -53,7 +55,8 @@ for index = 1, 10 do
   local fallback = 10 + index
   local target = parked .. " " .. fallback
   hl.unbind("SUPER + " .. key)
-  bind("ALT + " .. key, "Parking workspace (" .. parked .. "/" .. fallback .. ")", "~/.local/bin/hypr-ws park goto " .. target)
+  hl.unbind("ALT + " .. key)
+  bind(hyper .. " + " .. key, "Parking workspace (" .. parked .. "/" .. fallback .. ")", "~/.local/bin/hypr-ws park goto " .. target)
   bind("ALT + SHIFT + " .. key, "Park window (" .. parked .. "/" .. fallback .. ")", "~/.local/bin/hypr-ws park move " .. target)
 end
 

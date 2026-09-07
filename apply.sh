@@ -22,7 +22,7 @@ Usage: apply.sh [options]
 Options:
   --check              Print environment/repo checks and exit
   --dry-run            Print actions without changing files
-  --skip-packages      Skip package install via yay
+  --skip-packages      Skip package install via yay (keyd must already be installed)
   --gtk-gsettings       Also set GTK prefs via gsettings (Emacs keys + button layout) [default]
   --no-gtk-gsettings    Do not touch GTK gsettings
   --no-bar             Skip Quattro shell widgets and idle settings
@@ -85,7 +85,6 @@ preflight() {
     .config/fcitx5/conf/fcitx5-cskk \
     .config/hypr/hey-omarchy.lua \
     .config/hypr/hey-omarchy-bindings.lua \
-    .config/hypr/keymap-kana-altgr.xkb \
     .config/systemd/user/lid-nosuspend.service \
     .config/systemd/user/hypr-auto-rotate.service \
     .config/omarchy/hey-omarchy.json \
@@ -133,6 +132,15 @@ preflight() {
     fi
   done
 
+  for f in etc/keyd/kana-hyper.conf etc/keyd/roba-hyper.conf etc/keyd/hyper setup-keyd.sh; do
+    if [[ -f "$ROOT/$f" ]]; then
+      log "ok: $f"
+    else
+      log "MISSING: $f"
+      missing=1
+    fi
+  done
+
   log
 
   local c
@@ -144,7 +152,7 @@ preflight() {
     fi
   done
 
-  for c in python python3 jq hyprctl systemctl notify-send omarchy nmcli mmcli yay; do
+  for c in python python3 jq hyprctl systemctl notify-send omarchy nmcli mmcli yay keyd sudo; do
     if command -v "$c" >/dev/null 2>&1; then
       log "cmd: $c"
     else
@@ -167,6 +175,11 @@ preflight() {
   if (( missing )); then
     log
     log "ERROR: repo is missing required source files"
+    return 1
+  fi
+
+  if (( SKIP_PACKAGES )) && ! command -v keyd >/dev/null 2>&1; then
+    log "ERROR: --skip-packages requires keyd to be installed before changing desktop defaults."
     return 1
   fi
 
@@ -208,6 +221,7 @@ install_yay_packages() {
     fcitx5-cskk-git-debug
     skk-jisyo
     ddcutil
+    keyd
   )
 
   log "Installing packages via yay (may prompt for sudo): ${pkgs[*]}"
@@ -216,7 +230,7 @@ install_yay_packages() {
 
 backup_if_needed() {
   local dest="$1"
-  if [[ ! -e "$dest" ]]; then
+  if [[ ! -e "$dest" && ! -L "$dest" ]]; then
     return 0
   fi
 
@@ -769,6 +783,16 @@ fi
 
 install_yay_packages
 
+# Configure the system remap before installing Lua bindings that require Hyper.
+# Other optional package failures may be tolerated; a missing keyd may not.
+if (( ! DRY_RUN )) && ! command -v keyd >/dev/null 2>&1; then
+  log "ERROR: keyd is required; install it (for example: yay -S keyd) and rerun apply.sh."
+  exit 1
+fi
+keyd_args=()
+(( ! DRY_RUN )) || keyd_args+=(--dry-run)
+bash "$ROOT/setup-keyd.sh" "${keyd_args[@]}"
+
 # Fcitx5 is aggressive about autosaving its config on shutdown. If we update
 # ~/.config/fcitx5/* while the daemon is running and then restart it, the
 # shutdown autosave can overwrite our changes. To avoid that, stop fcitx5 first
@@ -825,8 +849,17 @@ else
   log "note: skipping GTK gsettings (--no-gtk-gsettings)"
 fi
 
+# Retire the old kana-to-Alt_R keymap, preserving it for rollback even though it
+# is no longer bundled. Do this only after the replacement keyd setup succeeds.
+obsolete_keymap="$HOME/.config/hypr/keymap-kana-altgr.xkb"
+if [[ -e "$obsolete_keymap" || -L "$obsolete_keymap" ]]; then
+  backup_if_needed "$obsolete_keymap"
+  run rm -- "$obsolete_keymap"
+  log "retired: $obsolete_keymap"
+fi
+
 # Install dedicated Quattro modules without replacing the user's standard modules.
-for src in "$SRC_HOME"/.config/hypr/*.lua "$SRC_HOME"/.config/hypr/*.xkb; do
+for src in "$SRC_HOME"/.config/hypr/*.lua; do
   [[ -f "$src" ]] || continue
   install_file "$src" "$HOME/.config/hypr/$(basename "$src")" 0644
 done

@@ -8,8 +8,21 @@ Installed to: `~/.config/hypr/hey-omarchy-bindings.lua` (via `apply.sh`)
 ## Modifier keys
 
 - `Super`: the Windows/Command key
-- `AltGr`: Right Alt / kana key in this guide. Native Lua uses `ALT` (Mod1), matching the old configuration; left Alt works too.
+- `Hyper`: `Super+Ctrl+Alt+Shift`, produced through keyd's shared layer by holding kana or the registered roBa right thumb.
+- `Alt`: either ordinary Alt key; used with Shift for window moves, not workspace switching.
 - `code:10..19`: the number row (`1..0` on most layouts)
+
+Tap kana alone and release it in less than 200 ms to send Enter. Hold kana while pressing another key to use Hyper immediately, without waiting for the tap timeout; releasing a standalone long hold sends no Enter. Caps remains Ctrl through Hyprland's `ctrl:nocaps` option.
+
+Henkan taps Backspace and holds Shift; Muhenkan taps the original Muhenkan key and holds Shift. Both share the 200 ms tap limit and immediate chord behavior. Releasing a standalone long hold sends no tap. Holding both conversion keys keeps Shift active until both are released.
+
+A uses `overloadi(a, overloadt(control, a, 250), 200)`: recent typing within 200 ms keeps A literal even if held. Otherwise, release before 250 ms for A or hold at least 250 ms for Ctrl. Quick intervening key taps do not force Ctrl, unlike `lettermod`/`overloadt2`. An A after a pause is emitted on release, so this intentionally trades immediate Ctrl chords and idle A auto-repeat for safer typing. To use Ctrl immediately after typing, use the ordinary Ctrl/Caps key.
+
+These kana/conversion/A remaps belong to the portable `[ids] *` fallback. roBa instead has an explicit keyboard configuration: its right thumb taps Enter / holds Right Command in firmware, and host keyd maps the hold (`rightmeta`) with `layer(hyper)`. Left Super and the trackball are unchanged, and roBa does not inherit the generic A→Ctrl remap. Only keyboard IDs `k:1d50:615e:c4fd5cd7` and `k:1d50:615e:a41a014e` are registered for USB/Bluetooth; other firmware/device names may need keyboard identification with `keyd monitor` and an updated bundle ID. The host mapping works with or without roBa's MAC layer because both emit `RIGHT_WIN`. It neither changes another machine nor flashes firmware.
+
+keyd is required. `apply.sh` uses the existing `setup-keyd.sh` to install `etc/keyd/kana-hyper.conf`, `etc/keyd/roba-hyper.conf`, and the shared `etc/keyd/hyper` into `/etc/keyd/` as one transaction before changing Hyprland defaults, with one interactive sudo escalation per setup invocation. `--skip-packages` requires keyd to be preinstalled. Explicit device configurations take precedence over the portable fallback. `apply.sh --check`, `apply.sh --dry-run`, and `setup-keyd.sh --dry-run` do not authenticate or change the host. To remake only this keyd setup, run `bash ./setup-keyd.sh`; registration in the bundle does not itself deploy it. See the [README](../README.md#apply) for apply commands, per-file backups, and conservative rollback that preserves user changes and shared include dependencies.
+
+Emergency: press **Backspace+Escape+Enter together** to stop keyd if its remaps prevent normal input. Correct the configuration before restarting keyd.
 
 Tip: Press `Super+I` to open Omarchy's keybinding menu (`omarchy menu keybindings`).
 
@@ -44,14 +57,14 @@ Tip: Press `Super+I` to open Omarchy's keybinding menu (`omarchy menu keybinding
 | `Super+Shift+X` | X |
 | `Super+Shift+Alt+X` | X (compose) |
 
-## Workspaces (AltGr workflow)
+## Workspaces (Hyper workflow)
 
 This setup treats one display as the "main" monitor:
 
-- `AltGr+QWERTASDFG` always targets workspaces `1..10` on the current main monitor.
-- `AltGr+ZXCVB` targets workspaces `11..15` on the main monitor.
-- `AltGr+YUIOP` targets `16..20`, and `AltGr+;` targets `25`. H/J/K/L and their shifted forms are left free for tmux.
-- `AltGr+1..0` targets "parking" workspaces on the non-main monitor when an external display is connected:
+- `Hyper+QWERTASDFG` always targets workspaces `1..10` on the current main monitor.
+- `Hyper+ZXCVB` targets workspaces `11..15` on the main monitor.
+- `Hyper+YUIOP` targets `16..20`, and `Hyper+;` targets `25`. Hyper+H/J/K/L have no workspace bindings; Alt+H/J/K/L and Alt+Shift+H/J/K/L remain free for tmux.
+- `Hyper+1..0` targets "parking" workspaces on the non-main monitor when an external display is connected:
   - `1=99` .. `0=90`
   - If there is no second monitor, these fall back to `11..20`.
 
@@ -68,18 +81,19 @@ You can also run `hypr-monitor-position menu` or `hypr-monitor-position left|rig
 
 | Keys | Action |
 | --- | --- |
-| `AltGr+Q/W/E/R/T` | Go to workspace `1/2/3/4/5` (main) |
-| `AltGr+A/S/D/F/G` | Go to workspace `6/7/8/9/10` (main) |
-| `AltGr+Z/X/C/V/B` | Go to workspace `11/12/13/14/15` (main) |
-| `AltGr+Y/U/I/O/P` | Go to workspace `16/17/18/19/20` (main) |
-| `AltGr+;` | Go to workspace `25`; H/J/K/L are unbound for tmux |
-| `AltGr+1..0` | Go to parking workspace `99..90` (fallback `11..20`) |
+| `Hyper+Q/W/E/R/T` | Go to workspace `1/2/3/4/5` (main) |
+| `Hyper+A/S/D/F/G` | Go to workspace `6/7/8/9/10` (main) |
+| `Hyper+Z/X/C/V/B` | Go to workspace `11/12/13/14/15` (main) |
+| `Hyper+Y/U/I/O/P` | Go to workspace `16/17/18/19/20` (main) |
+| `Hyper+;` | Go to workspace `25`; H/J/K/L have no workspace bindings |
+| `Hyper+1..0` | Go to parking workspace `99..90` (fallback `11..20`) |
 
 ### Move active window
 
-Add `Shift` to the workspace keys:
+Hold kana or roBa Hyper and an additional Shift, then press the same letter, semicolon, or number-row key:
 
-- `AltGr+Shift+...` moves the active window to that workspace (and focuses it).
+- Hyper+Shift+key moves the active window to that workspace (and focuses it). Either physical Shift or a held Henkan/Muhenkan mapped to Shift works, in either press order. keyd's shared `[hyper+shift]` layer distinguishes the additional Shift from Hyper's emulated Shift and emits the existing Alt+Shift move shortcut. Ordinary Alt+Shift still works. This distinction requires entering keyd's shared Hyper layer, as both the kana and roBa configurations do; a keyboard emitting only four modifiers does not provide it.
+- The old Alt-only workspace-switching bindings are explicitly removed.
 
 ## Window / display adjustments
 
@@ -106,6 +120,7 @@ Notes:
 ## Where to change things
 
 - Keybindings live in `~/.config/hypr/hey-omarchy-bindings.lua`; input and opacity rules live in `~/.config/hypr/hey-omarchy.lua`.
+- Edit the bundle's `etc/keyd/kana-hyper.conf` for portable kana/conversion/A tap/hold mappings, `etc/keyd/roba-hyper.conf` for the exact-ID roBa right-thumb hold mapping, and `etc/keyd/hyper` for shared Hyper/Hyper+Shift behavior. Both `.conf` files use `include hyper`; `setup-keyd.sh` installs all three into `/etc/keyd/`. Hyprland's `kb_file` is empty; the old kana XKB file is retired.
 - Workspace routing logic is implemented by `~/.local/bin/hypr-ws` and `~/.local/bin/hypr-main-monitor-toggle`.
 
 ## Stock shortcuts overridden

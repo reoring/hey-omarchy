@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Default kana to tap Enter / hold Hyper via required keyd (200 ms tap limit, immediate chords), and move workspace switching to Hyper while retaining Alt+Shift window moves and Caps→Ctrl.
+- Add Henkan tap Backspace / hold Shift and Muhenkan original tap / hold Shift, using the same 200 ms tap limit.
+- Make A tap A / hold Ctrl with a 250 ms hold threshold, a 200 ms recent-typing guard, and no early Ctrl activation from overlapping taps.
+- Support kana Hyper+Shift workspace moves through a keyd composite layer, including held Henkan/Muhenkan as Shift, without changing Hyper-only workspace switching.
+- Install and back up the portable keyd configuration before Hyprland changes; retire the kana XKB map and restore prior keyboard configuration on rollback.
+- Register roBa's host-only right-thumb Hyper mapping alongside the portable kana fallback, sharing Hyper/Hyper+Shift layers through the existing keyd setup with transactional three-file installation and dependency-aware rollback; preserve firmware Enter taps, left Super, and trackball input.
+
 ## v0.2.0 - 2026-09-07
 
 - Migrate the bundle to Omarchy Quattro: native Hyprland Lua modules, typed Lua helper mutations, and Quickshell status widgets instead of Waybar/Walker.

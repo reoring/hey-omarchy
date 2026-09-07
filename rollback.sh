@@ -105,6 +105,7 @@ log "Rolling back reoring customizations in: $HOME"
 dests=(
   "$HOME/.config/hypr/hyprland.lua"
   "$HOME/.config/hypr/hey-omarchy-options.lua"
+  "$HOME/.config/hypr/keymap-kana-altgr.xkb"
   "$HOME/.config/omarchy/shell.json"
   "$HOME/.local/share/libcskk/rules/metadata.toml"
   "$HOME/.local/share/libcskk/rules/default/rule.toml"
@@ -120,6 +121,12 @@ done < <(find "$ROOT/home" -type f -print0)
 for dest in "${dests[@]}"; do
   restore_one "$dest"
 done
+
+# The old Lua/XKB configuration is restored before removing the system remap.
+# The helper only changes owned bundle files, protects includes, and never stops keyd.
+keyd_args=(--rollback)
+(( ! DRY_RUN )) || keyd_args+=(--dry-run)
+bash "$ROOT/setup-keyd.sh" "${keyd_args[@]}"
 
 run systemctl --user daemon-reload
 run hyprctl reload

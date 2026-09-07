@@ -32,16 +32,31 @@ write_stub notify-send 'exit 0'
 write_stub omarchy 'exit 0'
 write_stub sudo 'exit 0'
 write_stub ldconfig 'exit 0'
+write_stub keyd 'exit 0'
+
+# Exercise user-file apply/rollback without ever configuring the host's keyd,
+# including when the test runner is root.
+fixture="$tmp/repo"
+mkdir -p "$fixture"
+cp -a "$ROOT/home" "$ROOT/etc" "$ROOT/apply.sh" "$ROOT/rollback.sh" "$fixture/"
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' >"$fixture/setup-keyd.sh"
 
 mkdir -p "$home/.config/hypr"
 printf '%s\n' "-- original custom module" >"$home/.config/hypr/hey-omarchy.lua"
 printf '%s\n' "-- original user entrypoint" >"$home/.config/hypr/hyprland.lua"
 printf '%s\n' "-- independent user input settings" >"$home/.config/hypr/input.lua"
+printf '%s\n' "original kana keymap" >"$home/.config/hypr/keymap-kana-altgr.xkb"
 cp "$home/.config/hypr/hey-omarchy.lua" "$tmp/original-module"
 cp "$home/.config/hypr/hyprland.lua" "$tmp/original-entrypoint"
 cp "$home/.config/hypr/input.lua" "$tmp/original-input"
+cp "$home/.config/hypr/keymap-kana-altgr.xkb" "$tmp/original-keymap"
 
-HOME="$home" OMARCHY_PATH="$omarchy_root" PATH="$bindir:$PATH" bash ./apply.sh --skip-packages --no-bar --no-gtk-gsettings --skip-nvidia-env >/dev/null
+HOME="$home" OMARCHY_PATH="$omarchy_root" PATH="$bindir:$PATH" bash "$fixture/apply.sh" --skip-packages --no-bar --no-gtk-gsettings --skip-nvidia-env >/dev/null
+
+if [[ -e "$home/.config/hypr/keymap-kana-altgr.xkb" ]]; then
+  printf '%s\n' "apply must retire the obsolete kana keymap" >&2
+  exit 1
+fi
 
 if cmp -s "$tmp/original-module" "$home/.config/hypr/hey-omarchy.lua"; then
   printf '%s\n' "expected the bundled customization module to be installed" >&2
@@ -53,7 +68,7 @@ if ! cmp -s "$tmp/original-input" "$home/.config/hypr/input.lua"; then
 fi
 
 set +e
-out=$(HOME="$home" PATH="$bindir:$PATH" bash ./rollback.sh 2>&1)
+out=$(HOME="$home" PATH="$bindir:$PATH" bash "$fixture/rollback.sh" 2>&1)
 st=$?
 set -e
 
@@ -67,6 +82,11 @@ fi
 if ! cmp -s "$tmp/original-module" "$home/.config/hypr/hey-omarchy.lua" \
   || ! cmp -s "$tmp/original-entrypoint" "$home/.config/hypr/hyprland.lua"; then
   printf '%s\n' "expected rollback to restore module and user entrypoint" >&2
+  exit 1
+fi
+
+if ! cmp -s "$tmp/original-keymap" "$home/.config/hypr/keymap-kana-altgr.xkb"; then
+  printf '%s\n' "rollback must restore the retired kana keymap" >&2
   exit 1
 fi
 

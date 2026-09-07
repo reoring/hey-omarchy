@@ -2,16 +2,19 @@
 
 reoring の個人設定を **Omarchy Quattro（4.x）** に適用するバンドルです。Hyprland のネイティブ Lua と Quickshell を使用し、Omarchy 3 向けの `.conf` や Waybar 設定はインストールしません。
 
-Omarchy 管理下のソースは変更しません。`apply.sh` は変更前のユーザーファイルをバックアップし、専用 Lua モジュールを読み込む行を追加します。既存の標準 Lua モジュールやバーの標準ウィジェット、無関係な `shell.json` 設定は保持します。
+Omarchy 管理下のソースは変更しません。`apply.sh` は変更前のユーザーファイルをバックアップし、専用 Lua モジュールを読み込む行を追加します。また、後述のシステム用 keyd 設定を sudo で導入します。既存の標準 Lua モジュールやバーの標準ウィジェット、無関係な `shell.json` 設定は保持します。
 
 関連: [English README](README.md)、[ショートカット一覧](user-guide.ja.md)、[CSKK の説明](japanese/cskk.md)。
 
 ## 引き継ぐ機能
 
-- メインモニターのワークスペース 1〜20・25、別画面への parking 99〜90、1画面時の 11〜20 フォールバック。Shift 併用でウィンドウ移動。
-- 右 Alt とかなキーによるワークスペース操作。Lua では `ALT`（Mod1）を使用します。旧 `ALTGR` 表記の実際の挙動と同じで、左 Alt にも反応します。Lua に `ALTGR` と書くことはできません。
-- tmux と競合する Alt+H/J/K/L は Shift 併用も含めて割り当てなし。
-- Caps→Ctrl、かな→Alt_R、キーリピート 40/600、自然スクロール 0.4、入力中のタッチパッド操作。
+- Hyper でメインモニターのワークスペース 1〜20・25、別画面への parking 99〜90、1画面時の 11〜20 フォールバックを切り替えます。かな／roBa 共通の Hyper+Shift と同じキーでウィンドウを移動でき、従来の Alt+Shift も使えます。
+- かなキーを単独で200 ms未満で離すと Enter、押しながら別のキーを押すと Hyper（`Super+Ctrl+Alt+Shift`）になります。同時押しは200 ms待たず即座に有効になり、単独で長押しして離しても Enter は出ません。通常の Alt ではワークスペースを切り替えません。
+- roBa の右親指はファームウェアのタップ Enter／ホールド Right Command を維持します。このホストの keyd がホールドを共通 Hyper レイヤーに変換し、左 Super とトラックボールは変更しません。明示的な ID で一致する roBa には、以下の汎用かなリマップは適用しません。
+- 変換キーはタップで Backspace、ホールドで Shift。無変換キーはタップ時の無変換を残し、ホールドで Shift にします。どちらもタップ判定は200 ms未満、他キーとの併用では即座に Shift となり、単独の長押し後はタップを送りません。
+- A はタップで通常入力、250 msホールドで Ctrl。ただし直前の文字入力から200 ms未満なら通常の A を優先します。他キーの素早いタップでは Ctrl に切り替えません。即座の Ctrl 操作より誤爆防止を優先し、間を空けた後の A はキーを離した時点で入力されます。
+- tmux と競合する Alt+H/J/K/L は Alt+Shift 併用も含めて割り当てなし。
+- Caps→Ctrl は引き続き Hyprland 側で設定。キーリピート 40/600、自然スクロール 0.4、入力中のタッチパッド操作を保持。
 - Super+H/J/K/L のフォーカス移動、個人用アプリ・Web アプリ起動、透明度、ブラー、余白、画面スケール・位置・リフレッシュレート、夜間モード。
 - メインモニター、DDC 輝度、JP/EN、ふた閉じサスペンド、キーボード清掃、カーソル、roBa、WWAN、Tailscale、CPU/btop のネイティブバー操作。
 - 無操作15分でロック、16分で画面オフ。先行するスクリーンセーバーなし。復帰時に明るさを復元。
@@ -26,7 +29,9 @@ Omarchy 管理下のソースは変更しません。`apply.sh` は変更前の�
 |---|---|
 | `~/.config/hypr/hey-omarchy.lua` | 入力、透明度・ウィンドウルール、ハードウェア条件 |
 | `~/.config/hypr/hey-omarchy-bindings.lua` | キーバインド。標準の競合キーは明示的に解除 |
-| `~/.config/hypr/keymap-kana-altgr.xkb` | かな・Caps キーマップ |
+| `/etc/keyd/kana-hyper.conf` | 汎用のかな・変換・無変換・A のタップ／ホールド設定。`hyper` を include |
+| `/etc/keyd/roba-hyper.conf` | roBa キーボードの完全一致 ID と `rightmeta = layer(hyper)`。`hyper` を include |
+| `/etc/keyd/hyper` | ワークスペース切替とウィンドウ移動に使う共通の `[hyper:C-A-S-M]`・`[hyper+shift]` レイヤー |
 | `~/.config/hypr/hey-omarchy-options.lua` | インストーラーが生成する画面/NVIDIA オプション |
 | `~/.config/omarchy/shell.json` | 既存バーに独自ウィジェットを追加、アイドル設定 |
 | `~/.config/omarchy/plugins/hey-omarchy/` | 共有ステータスサービスとバー部品 |
@@ -46,15 +51,30 @@ bash ./apply.sh --dry-run --skip-packages
 bash ./apply.sh --skip-packages
 ```
 
-入力メソッドや DDC の依存パッケージも必要なら `--skip-packages` を外します。適用時は稼働中の `omarchy-fcitx5.service` を短時間再起動し、Hyprland の再読み込み・エラー確認後、古い QML キャッシュを残さないようシェルを再起動します。アプリやログインセッションは終了しません。
+keyd は必須です。keyd・入力メソッド・DDC の依存パッケージも必要なら `--skip-packages` を外します。`--skip-packages` 使用時は keyd を事前にインストールしてください。`apply.sh` は既存の `setup-keyd.sh` を呼び、`etc/keyd/` の3ファイルを `/etc/keyd/` に一括導入します。セットアップ1回につき対話端末の通常の sudo 昇格を1回使用し、keyd を有効化・起動します。すでに稼働中なら設定を再読み込みします。この処理が成功するまでユーザーの Hyprland 既定設定は変更しません。`--check` と `--dry-run` は認証もホストの変更も行わず、サービスの起動・再読み込みもしません。
+
+`etc/keyd/kana-hyper.conf` は `[ids] *` を汎用キーボードのフォールバックとして保持し、`katakanahiragana = overload(hyper, enter)` と `[global] overload_tap_timeout = 200` を使用します。明示的なデバイス設定が優先されます。配布する `etc/keyd/roba-hyper.conf` は登録済み roBa の USB／Bluetooth キーボード ID `k:1d50:615e:c4fd5cd7` と `k:1d50:615e:a41a014e` だけに一致し、汎用の A→Ctrl タップ／ホールド設定を回避します。別のファームウェアやデバイス名では ID が異なる場合があるため、`keyd monitor` でキーボードを識別してからバンドル側の roBa ID を調整してください。ほかに明示的な設定を持つキーボードにも必要なら、その設定側にマッピングを追加してください。
+
+両設定は `include hyper` で `etc/keyd/hyper` を共有し、Hyper+Shift によるウィンドウ移動にも対応します。roBa ファームウェアはすでに右親指のタップで Enter、ホールドで Right Command（`RIGHT_WIN`、keyd では `rightmeta`）を送ります。ホスト側ではそのホールドだけを Hyper に変換し、左 Super とトラックボール入力は変更しません。roBa の MAC レイヤーの有無にかかわらず同じ `RIGHT_WIN` が出るため、どちらでも適用されます。別のマシンには影響せず、ファームウェアを書き込む処理もありません。これは別のプラグインではなく既存バンドルへのホスト設定の登録であり、登録だけでは実機に適用されません。
+
+keyd の導入済み環境で、keyd 部分だけを確認・再現する場合:
+
+```sh
+bash ./setup-keyd.sh --dry-run
+bash ./setup-keyd.sh
+```
+
+Hyprland の `kb_file` は空にし、`kb_options = "ctrl:nocaps"` を保持します。不要になったインストール済みの `~/.config/hypr/keymap-kana-altgr.xkb` はバックアップ後に削除します。
+
+適用時は稼働中の `omarchy-fcitx5.service` を短時間再起動し、Hyprland の再読み込み・エラー確認後、古い QML キャッシュを残さないようシェルを再起動します。アプリやログインセッションは終了しません。keyd の設定で入力できなくなった場合は **Backspace+Escape+Enter を同時押し**して keyd を停止し、設定を修正してから再起動してください。
 
 同一内容のファイルはスキップします。再適用で独自ウィジェットが増殖したり、変更した配置・個別設定が初期化されたりしません。ただしアイドル時間などバンドル管理の値は再適用するため、変更はバンドル側にも保存してください。旧 `.conf` や Quattro 移行時バックアップは削除しません。
 
 ### オプション
 
-- `--check`: ファイルとコマンドを確認。ユーザー設定の変更なし。
-- `--dry-run`: 予定される操作だけ表示。
-- `--skip-packages`: yay のパッケージ導入を省略。
+- `--check`: ファイルとコマンドを確認。認証・ホストの変更なし。
+- `--dry-run`: 予定される操作だけ表示。認証・ホストの変更なし。
+- `--skip-packages`: yay のパッケージ導入を省略。keyd の事前インストールが必要。
 - `--no-bar`: シェルのウィジェットとアイドル設定を省略。
 - `--gtk-gsettings` / `--no-gtk-gsettings`: GTK 設定の反映を有効/無効化（標準は有効）。
 - `--force-monitors`: preferred 解像度・自動配置・自動スケールの汎用設定を適用。通常は既存 `monitors.lua` を保持。
@@ -89,14 +109,14 @@ bash tests/run.sh
 
 ## ロールバック
 
-変更前のファイルは隣に `*.bak.YYYYmmdd-HHMMSS` として保存します。
+変更前のファイルは隣に `*.bak.YYYYmmdd-HHMMSS` として保存します。`/etc/keyd/` のバンドル3ファイルと、存在する場合は不要になったかな XKB ファイルも対象です。
 
 ```sh
 bash ./rollback.sh --dry-run
 bash ./rollback.sh
 ```
 
-Lua の読み込み元とシェル設定を含め、管理対象の最新バックアップを復元して Hyprland とシェルを再読み込みします。元ファイルが存在しなかった新規ファイルは残します。戻すのは個人設定バンドルであり、**Quattro のシステムアップグレードではありません**。
+Lua の読み込み元とシェル設定を含め、管理対象ユーザーファイルの最新バックアップを復元して Hyprland とシェルを再読み込みします。keyd 設定は sudo とファイルごとの所有・バックアップ記録で以前の内容に戻し、元ファイルがなければバンドルが作成したファイルを安全に削除します。戻すのは適用後に変更されていないバンドル所有のファイルだけで、後から行ったユーザー編集は保持し、最初から同一内容だったファイルは所有扱いにしません。残す設定が共通の `hyper` include に依存する場合は、安全のためその共有ファイルも保持します。keyd が稼働中なら再読み込みしますが、サービスの無効化や無関係なリマップの削除はしません。keyd だけ戻す場合は `bash ./setup-keyd.sh --rollback` を使います（`--dry-run` を追加すると認証・ホスト変更なしで確認できます）。かな XKB ファイルも適用時のバックアップがあれば復元します。それ以外の、元ファイルが存在しなかった新規ファイルは残します。`--dry-run` は何も変更しません。戻すのは個人設定バンドルであり、**Quattro のシステムアップグレードではありません**。
 
 ## ライセンス
 

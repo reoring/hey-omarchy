@@ -18,7 +18,7 @@ jobs:
 
       - name: Bash syntax check
         run: |
-          for script in apply.sh rollback.sh home/.local/bin/* tests/*.sh; do
+          for script in apply.sh rollback.sh setup-keyd.sh home/.local/bin/* tests/*.sh; do
             IFS= read -r shebang < "$script"
             case "$shebang" in *bash*) bash -n "$script" ;; esac
           done
@@ -26,7 +26,7 @@ jobs:
 
       - name: Shellcheck
         run: |
-          for script in apply.sh rollback.sh home/.local/bin/* tests/*.sh; do
+          for script in apply.sh rollback.sh setup-keyd.sh home/.local/bin/* tests/*.sh; do
             IFS= read -r shebang < "$script"
             case "$shebang" in *bash*) shellcheck -S warning "$script" ;; esac
           done

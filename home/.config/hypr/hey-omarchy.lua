@@ -1,12 +1,11 @@
 -- Load after Omarchy defaults and the normal user modules in hyprland.lua.
 local options = require("hypr.hey-omarchy-options")
-local config_home = os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")
 
 hl.config({
   input = {
     kb_layout = "us",
     kb_options = "ctrl:nocaps",
-    kb_file = config_home .. "/hypr/keymap-kana-altgr.xkb",
+    kb_file = "", -- Kana tap/hold is handled by keyd.
     repeat_rate = 40,
     repeat_delay = 600,
     numlock_by_default = true,
