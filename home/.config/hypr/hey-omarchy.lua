@@ -23,7 +23,7 @@ o.window("com.mitchellh.ghostty", { scroll_touchpad = 0.2 })
 -- Keep these anonymous: Hyprland evaluates all named rules before anonymous
 -- rules, including Omarchy's defaults. The final matching opacity must win.
 -- https://wiki.hypr.land/Configuring/Basics/Window-Rules/
-o.window(".*", { opacity = "0.97 0.50" })
+o.window(".*", { opacity = "0.97 0.90" })
 for percent = 20, 100, 5 do
   local alpha = string.format("%.2f", percent / 100)
   o.window({ tag = "alpha_" .. alpha }, {
