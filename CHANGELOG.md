@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Default CSKK to Ascii for new input contexts, retaining ASCII key passthrough and the existing `Ctrl-j` / `l` mode switches.
 - Default kana to tap Enter / hold Hyper via required keyd (200 ms tap limit, immediate chords), and move workspace switching to Hyper while retaining Alt+Shift window moves and Caps→Ctrl.
 - Add Henkan tap Backspace / hold Shift and Muhenkan original tap / hold Shift, using the same 200 ms tap limit.
 - Make A tap A / hold Ctrl with a 250 ms hold threshold, a 200 ms recent-typing guard, and no early Ctrl activation from overlapping taps.

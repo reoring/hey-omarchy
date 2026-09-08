@@ -1,7 +1,7 @@
 # Rule
 Rule=passthrough_ascii
 # InitialInputMode
-InitialInputMode=Hiragana
+InitialInputMode=Ascii
 # Period style
 Period style=。
 # Comma style

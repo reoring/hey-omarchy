@@ -10,12 +10,14 @@ This repo configures CSKK so that when CSKK is in Ascii mode, most keys are pass
 - Fcitx5 addon config: `home/.config/fcitx5/conf/fcitx5-cskk`
   - installed to `~/.config/fcitx5/conf/fcitx5-cskk`
   - sets `Rule=passthrough_ascii`
+  - sets `InitialInputMode=Ascii` so new input contexts start in half-width English rather than Hiragana
 - libcskk rules: `~/.local/share/libcskk/rules/`
   - created/updated by `apply.sh`
   - `apply.sh` generates `~/.local/share/libcskk/rules/passthrough_ascii/rule.toml` from the system default rule and replaces only the `[direct.ascii]` section.
 
 ## User-facing behavior
 
+- CSKK starts in Ascii mode for a new input context. Existing contexts may retain their selected mode.
 - Enter CSKK Ascii mode from Hiragana by pressing `l` (this is part of the underlying libcskk rule).
 - While in CSKK Ascii mode:
   - letters/digits/punctuation are delivered to the application as key events

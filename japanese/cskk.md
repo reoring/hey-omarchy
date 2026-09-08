@@ -26,7 +26,10 @@ libcskk のルールで `PassthroughKeyEvent` を使い、`[direct.ascii]` の�
 
 ```ini
 Rule=passthrough_ascii
+InitialInputMode=Ascii
 ```
+
+新しい入力コンテキストの初期モードは、ひらがなではなく半角英字（Ascii）にする。`Ctrl-j` でひらがな入力へ、未変換状態の `l` で半角英字へ戻せる。既存の入力欄では選択済みのモードが残る場合がある。
 
 2) libcskk ルール（cskk の変換/コマンド定義）
 
