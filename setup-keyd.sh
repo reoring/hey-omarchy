@@ -258,7 +258,7 @@ complete=1
 if (( ROLLBACK )); then
   log "keyd bundle rolled back; unowned/user-modified files preserved and keyd service left enabled"
 else
-  log "keyd ready: portable kana and roBa Right Meta share Hyper (Ctrl+Alt+Shift+Super)"
+  log "keyd ready: built-in kana and roBa/moNa2 Right Meta share Hyper (Ctrl+Alt+Shift+Super)"
   log "Kana taps Enter; Henkan taps Backspace / holds Shift; Muhenkan preserves tap / holds Shift (tap <200 ms)"
   log "A taps normally / holds Ctrl after 250 ms; typing within 200 ms keeps A literal"
 fi

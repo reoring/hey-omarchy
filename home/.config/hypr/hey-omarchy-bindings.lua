@@ -27,7 +27,7 @@ bind("SUPER + SHIFT + P", "Google Photos", { webapp = "https://photos.google.com
 bind("SUPER + SHIFT + X", "X", { webapp = "https://x.com/" })
 bind("SUPER + SHIFT + ALT + X", "X Post", { webapp = "https://x.com/compose/post" })
 
--- keyd routes kana Hyper + extra Shift to these Alt+Shift window-move bindings.
+-- Kana holds Ctrl+Alt+Shift+Super via keyd. Window moves retain Alt+Shift.
 -- H/J/K/L remain free for tmux.
 local hyper = "SUPER + CTRL + ALT + SHIFT"
 local workspace_keys = {

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "reoring.rain",
+  "name": "Wallpaper Rain",
+  "version": "1.0.0",
+  "author": "reoring",
+  "description": "Subtle animated rain above the wallpaper without intercepting desktop input",
+  "kinds": ["service"],
+  "entryPoints": { "service": "Rain.qml" }
+}

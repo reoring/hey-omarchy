@@ -1,0 +1,391 @@
+#!/usr/bin/env python3
+"""Inspect CPU frequencies and change temporary upper limits or CPU boost."""
+import argparse
+import fcntl
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+from decimal import Decimal, InvalidOperation
+
+CPU_ROOT = Path('/sys/devices/system/cpu/cpufreq')
+
+
+def number(path, optional=False):
+    try:
+        return int(path.read_text().strip())
+    except (OSError, ValueError):
+        if optional:
+            return None
+        raise RuntimeError(f'Cannot read CPU policy: {path}') from None
+
+
+def policies():
+    rows = []
+    for path in sorted(CPU_ROOT.glob('policy[0-9]*')):
+        rows.append({
+            'path': path,
+            'floor': number(path / 'scaling_min_freq'),
+            'limit': number(path / 'scaling_max_freq'),
+            'minimum': number(path / 'cpuinfo_min_freq'),
+            'maximum': number(path / 'cpuinfo_max_freq'),
+            'peak': number(path / 'amd_pstate_max_freq', optional=True),
+            'boost': number(path / 'boost', optional=True),
+        })
+    if not rows:
+        raise RuntimeError('CPU frequency control is not available on this machine')
+    return rows
+
+
+def boost_controls(rows):
+    controls = []
+    if number(CPU_ROOT / 'boost', optional=True) is not None:
+        controls.append(CPU_ROOT / 'boost')
+    per_policy = [row['path'] / 'boost' for row in rows if row['boost'] is not None]
+    if not controls and len(per_policy) != len(rows):
+        return []
+    return controls + per_policy
+
+
+def boost_state(rows):
+    global_value = number(CPU_ROOT / 'boost', optional=True)
+    if global_value == 0:
+        return 'off'
+    values = {row['boost'] for row in rows}
+    if values == {0}:
+        return 'off'
+    if values == {1} or (values == {None} and global_value == 1):
+        return 'on'
+    return 'unavailable' if values == {None} else 'mixed'
+
+
+def ghz(khz):
+    value = f'{khz / 1000000:.3f}'.rstrip('0').rstrip('.')
+    return value if '.' in value else value + '.0'
+
+
+def span(values):
+    values = [value for value in values if value is not None]
+    if not values:
+        return 'unavailable'
+    low, high = min(values), max(values)
+    return (ghz(low) if low == high else f'{ghz(low)}–{ghz(high)}') + ' GHz'
+
+
+def status():
+    try:
+        rows = policies()
+        limits = [row['limit'] for row in rows]
+        measured = [number(row['path'] / 'cpuinfo_avg_freq', optional=True) for row in rows]
+        boost = boost_state(rows)
+        uncapped = all(row['limit'] == row['maximum'] for row in rows)
+        cap = ghz(limits[0]) + 'G' if len(set(limits)) == 1 else 'mixed'
+        tooltip = '\n'.join([
+            'CPU frequency — upper limit, not a fixed clock',
+            'User upper cap: ' + ('released (driver maximum)' if uncapped else 'active'),
+            f'Set upper limit: {span(limits)}',
+            f'Set lower limit: {span([row["floor"] for row in rows])}',
+            f'Measured active clock: {span(measured)} (last sample)',
+            '',
+            f'Hardware minimum (driver): {span([row["minimum"] for row in rows])}',
+            f'Hardware peak (AMD driver): {span([row["peak"] for row in rows])}',
+            f'Driver maximum with current boost setting: {span([row["maximum"] for row in rows])}',
+            f'Boost: {boost} · {len(rows)} CPU policies',
+            '',
+            'Click: upper limit / uncap / CPU boost · Right click: btop',
+            'Temporary; reboot or power management may reset it.',
+            'Frequency selection preserves boost. Boost ON preserves the cap.',
+            'Boost OFF may lower the cap to the non-boost maximum.',
+            'Uncap enables supported boost and uses each policy maximum.',
+            'Thermal and power limits still apply; power profile is unchanged.',
+            'Lower limits are preserved. Status refreshes every 30s.',
+        ])
+        marker = {'on': ' B+', 'off': ' B-', 'mixed': ' B?'}.get(boost, '')
+        return {'text': ('MAX' if uncapped else '≤' + cap) + marker, 'tooltip': tooltip, 'class': '', 'limit_khz': limits, 'boost': boost, 'uncapped': uncapped}
+    except (OSError, RuntimeError) as error:
+        return {'text': 'CPU ?', 'tooltip': str(error), 'class': 'unknown'}
+
+
+def parse_ghz(value):
+    try:
+        khz = Decimal(value) * 1000000
+        if not khz.is_finite() or khz <= 0 or khz != khz.to_integral_value():
+            raise ValueError
+        return int(khz)
+    except (InvalidOperation, ValueError, OverflowError):
+        raise ValueError('Specify a positive frequency in GHz, for example 2.0') from None
+
+
+def targets(rows, requested):
+    result = []
+    for row in rows:
+        value = row['maximum'] if requested == 'uncap' else int(requested)
+        if not row['floor'] <= value <= row['maximum']:
+            raise ValueError(f'{row["path"].name}: choose {ghz(row["floor"])}–{ghz(row["maximum"])} GHz; lower limit and boost stay unchanged')
+        result.append((row['path'] / 'scaling_max_freq', value))
+    return result
+
+
+def wait_for_limits(expected, timeout=3):
+    # cpufreq applies frequency-QoS changes asynchronously, after the write returns.
+    deadline = time.monotonic() + timeout
+    while True:
+        mismatches = [(path, value, number(path)) for path, value in expected]
+        mismatches = [(path, value, actual) for path, value, actual in mismatches if actual != value]
+        if not mismatches:
+            return
+        if time.monotonic() >= deadline:
+            path, value, actual = mismatches[0]
+            raise RuntimeError(f'{path.parent.name}: requested {ghz(value)} GHz, read back {ghz(actual)} GHz')
+        time.sleep(0.05)
+
+
+def apply_limits(requested):
+    rows = policies()
+    expected = targets(rows, requested)  # Validate every policy before any writes.
+    changed = []
+    try:
+        for row, (path, value) in zip(rows, expected):
+            if row['limit'] == value:
+                continue
+            changed.append((path, row['limit']))
+            path.write_text(str(value) + '\n')
+        wait_for_limits(expected)
+    except (OSError, RuntimeError) as error:
+        rollback_errors = []
+        for path, previous in reversed(changed):
+            try:
+                path.write_text(str(previous) + '\n')
+            except OSError as rollback_error:
+                rollback_errors.append(str(rollback_error))
+        try:
+            wait_for_limits(changed)
+        except (OSError, RuntimeError) as rollback_error:
+            rollback_errors.append(str(rollback_error))
+        detail = '; ROLLBACK FAILED: ' + '; '.join(rollback_errors) if rollback_errors else '; previous limits restored'
+        raise RuntimeError(str(error) + detail) from error
+    return f'Upper limit: {span([value for _, value in expected])} · verified {len(rows)} CPU policies'
+
+
+def wait_for_boost(expected, timeout=3):
+    deadline = time.monotonic() + timeout
+    while True:
+        if all(number(path) == value for path, value in expected):
+            return
+        if time.monotonic() >= deadline:
+            raise RuntimeError('CPU boost state did not settle on every control')
+        time.sleep(0.05)
+
+
+def restore_bounds(rows, clamp=False):
+    expected = []
+    for row in rows:
+        maximum = number(row['path'] / 'cpuinfo_max_freq')
+        limit = min(row['limit'], maximum) if clamp else row['limit']
+        if not row['floor'] <= limit <= maximum:
+            raise RuntimeError(f'{row["path"].name}: cannot preserve the current frequency bounds with boost disabled')
+        # The maximum goes first so a restored high floor can become valid again.
+        expected.extend([(row['path'] / 'scaling_max_freq', limit),
+                         (row['path'] / 'scaling_min_freq', row['floor'])])
+    for path, value in expected:
+        path.write_text(str(value) + '\n')
+    wait_for_limits(expected)
+    return [value for path, value in expected if path.name == 'scaling_max_freq']
+
+
+def restore_boost_and_bounds(rows, previous):
+    errors = []
+    for path, value in previous:
+        try:
+            path.write_text(str(value) + '\n')
+        except OSError as error:
+            errors.append(str(error))
+    try:
+        wait_for_boost(previous)
+        restore_bounds(rows)
+    except (OSError, RuntimeError) as error:
+        errors.append(str(error))
+    return errors
+
+
+def apply_boost(state):
+    if state not in ('on', 'off'):
+        raise ValueError('CPU boost expects on or off')
+    rows = policies()
+    controls = boost_controls(rows)
+    if not controls:
+        raise RuntimeError('This driver does not expose supported CPU boost controls')
+    previous = [(path, number(path)) for path in controls]
+    expected = [(path, int(state == 'on')) for path in controls]
+    try:
+        # The global gate comes first; per-policy settings then remove mixed states.
+        for path, value in expected:
+            if number(path) != value:
+                path.write_text(str(value) + '\n')
+        wait_for_boost(expected)
+        limits = restore_bounds(rows, clamp=state == 'off')
+        wait_for_boost(expected)
+    except (OSError, RuntimeError) as error:
+        rollback_errors = restore_boost_and_bounds(rows, previous)
+        detail = '; ROLLBACK FAILED: ' + '; '.join(rollback_errors) if rollback_errors else '; previous boost state and frequency bounds restored'
+        raise RuntimeError(str(error) + detail) from error
+    return f'CPU boost: {state} · upper limit: {span(limits)} · verified {len(rows)} CPU policies'
+
+
+def apply_uncap():
+    rows = policies()
+    controls = boost_controls(rows)
+    previous = [(path, number(path)) for path in controls]
+    try:
+        if controls and boost_state(rows) != 'on':
+            apply_boost('on')
+        # Read maxima again after enabling boost, not the old non-boost ceiling.
+        message = apply_limits('uncap')
+        current = policies()
+        if not all(row['limit'] == row['maximum'] for row in current):
+            raise RuntimeError('CPU upper limits changed during release')
+        if controls and boost_state(current) != 'on':
+            raise RuntimeError('CPU boost was not enabled during release')
+    except (OSError, ValueError, RuntimeError) as error:
+        rollback_errors = restore_boost_and_bounds(rows, previous)
+        detail = '; ROLLBACK FAILED: ' + '; '.join(rollback_errors) if rollback_errors else '; previous boost state and frequency bounds restored'
+        raise RuntimeError(str(error) + detail) from error
+    return 'User frequency cap released · ' + message
+
+
+def notify(message, error=False):
+    subprocess.run(['notify-send', '-u', 'critical' if error else 'normal',
+                    'CPU frequency', message], check=False)
+
+
+def authorized(action, value=None):
+    command = ['pkexec', '/usr/bin/python3', '-I', str(Path(__file__).resolve()), action]
+    if value is not None:
+        command.append(str(value))
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode in (126, 127):
+        raise RuntimeError('Authorization cancelled or unavailable; no change was applied')
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or 'Could not change CPU settings')
+    return result.stdout.strip()
+
+
+def set_boost(state):
+    if state not in ('on', 'off'):
+        raise ValueError('CPU boost expects on or off')
+    rows = policies()
+    if not boost_controls(rows):
+        raise RuntimeError('This driver does not expose supported CPU boost controls')
+    if boost_state(rows) == state:
+        return 'CPU boost already ' + state
+    message = authorized('_boost', state)
+    if boost_state(policies()) != state:
+        raise RuntimeError('CPU boost state changed after applying it; refresh and try again')
+    subprocess.run(['omarchy-shell', '-q', 'hey-omarchy', 'refresh', 'cpu-frequency'], check=False)
+    return message
+
+
+def set_limit(requested):
+    rows = policies()
+    expected = targets(rows, requested)
+    if all(row['limit'] == value for row, (_, value) in zip(rows, expected)):
+        return 'Upper limit already set: ' + span([value for _, value in expected])
+    message = authorized('_apply', requested)
+    wait_for_limits(expected)
+    subprocess.run(['omarchy-shell', '-q', 'hey-omarchy', 'refresh', 'cpu-frequency'], check=False)
+    return message
+
+
+def set_uncap():
+    rows = policies()
+    needs_boost = bool(boost_controls(rows)) and boost_state(rows) != 'on'
+    if not needs_boost and all(row['limit'] == row['maximum'] for row in rows):
+        return 'Upper limit already at driver maximum: ' + span([row['maximum'] for row in rows])
+    message = authorized('_uncap')
+    current = policies()
+    if not all(row['limit'] == row['maximum'] for row in current):
+        raise RuntimeError('CPU upper limits changed after release; refresh and try again')
+    if boost_controls(current) and boost_state(current) != 'on':
+        raise RuntimeError('CPU boost changed after release; refresh and try again')
+    subprocess.run(['omarchy-shell', '-q', 'hey-omarchy', 'refresh', 'cpu-frequency'], check=False)
+    return message
+
+
+def menu():
+    rows = policies()
+    lower = max(row['floor'] for row in rows)
+    upper = min(row['maximum'] for row in rows)
+    choices = {f'{ghz(value)} GHz upper limit': value
+               for value in (800000, 1000000, 1500000, 2000000, 2500000, 3000000)
+               if lower <= value <= upper}
+    boost = boost_state(rows)
+    if boost_controls(rows):
+        if boost != 'on':
+            choices['Enable CPU boost (keep current upper limit)'] = 'on'
+        if boost != 'off':
+            choices['Disable CPU boost (non-boost maximum applies)'] = 'off'
+    uncap_label = 'Uncap upper limit + enable CPU boost' if boost_controls(rows) else 'Uncap upper limit (driver maximum)'
+    choices[uncap_label] = 'uncap'
+    prompt = 'CPU · limit ' + span([row['limit'] for row in rows]) + ' · boost ' + boost
+    result = subprocess.run(['omarchy', 'menu', 'select', prompt, *choices, '--', '--width', '520'], capture_output=True, text=True)
+    if result.returncode:
+        if result.stderr.strip():
+            raise RuntimeError(result.stderr.strip())
+        return
+    if not result.stdout.strip():
+        return
+    choice = result.stdout.strip()
+    if choice not in choices:
+        raise RuntimeError('Unknown CPU frequency selection')
+    selected = choices[choice]
+    if selected == 'uncap':
+        notify(set_uncap())
+    else:
+        notify(set_boost(selected) if selected in ('on', 'off') else set_limit(selected))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', nargs='?', default='status', choices=['status', 'menu', 'set', 'boost', 'uncap', '_apply', '_boost', '_uncap'])
+    parser.add_argument('value', nargs='?', help='GHz for set, or on/off for boost')
+    args = parser.parse_args()
+    try:
+        if args.action == 'status':
+            print(json.dumps(status(), ensure_ascii=False))
+        elif args.action == 'menu':
+            menu()
+        elif args.action == 'boost':
+            print(set_boost(args.value))
+        elif args.action == 'uncap':
+            print(set_uncap())
+        elif args.action in ('_apply', '_boost', '_uncap'):
+            if os.geteuid() != 0:
+                raise RuntimeError('Changing CPU settings requires authorization')
+            if args.action == '_apply' and (args.value is None or not args.value.isdecimal()):
+                raise ValueError('Expected a positive integer in kHz')
+            if args.action == '_boost' and args.value not in ('on', 'off'):
+                raise ValueError('CPU boost expects on or off')
+            lock = os.open('/run/hey-omarchy-cpu-frequency.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(lock, 'w') as handle:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if args.action == '_uncap':
+                    print(apply_uncap())
+                else:
+                    print(apply_boost(args.value) if args.action == '_boost' else apply_limits(args.value))
+        else:
+            if args.action == 'set' and args.value is None:
+                parser.error('set requires a frequency in GHz')
+            requested = parse_ghz(args.value)
+            print(set_limit(requested))
+    except (OSError, ValueError, RuntimeError) as error:
+        print(str(error), file=sys.stderr)
+        if args.action == 'menu':
+            notify(str(error), error=True)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

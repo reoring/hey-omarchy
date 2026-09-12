@@ -9,6 +9,10 @@ Item {
   property string backgroundPath: ""
   property int backgroundVersion: 0
   property bool fingerprintConfigured: false
+  property bool faceConfigured: false
+  property bool faceAuthenticating: false
+  property bool faceRetryAllowed: false
+  property string faceMessage: ""
   property bool authenticatingPassword: false
   property string failureMessage: ""
   property int failedAttempts: 0
@@ -42,6 +46,7 @@ Item {
   signal passwordTextEdited(string password)
   signal clearFailureRequested()
   signal wakeRequested()
+  signal retryFaceRequested()
 
   // Cache-busts the lock background by appending `?v=`. Adding a query
   // string keeps Image's loader happy while forcing it to reload when the
@@ -179,6 +184,9 @@ Item {
           if (event.key === Qt.Key_Escape || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_U)) {
             root.passwordTextEdited("")
             event.accepted = true
+          } else if (event.key === Qt.Key_F2 && root.faceRetryAllowed) {
+            root.retryFaceRequested()
+            event.accepted = true
           }
         }
       }
@@ -213,6 +221,38 @@ Item {
         font.pixelSize: Math.round(root.fieldFontSize * 1.1)
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
+      }
+    }
+
+    Text {
+      id: faceHint
+      objectName: "faceIndicator"
+      anchors.top: inputField.bottom
+      anchors.topMargin: 16
+      anchors.horizontalCenter: inputField.horizontalCenter
+      width: Math.min(root.width - 32, root.fieldWidth + 160)
+      visible: root.faceConfigured
+      textFormat: Text.PlainText
+      text: root.faceAuthenticating
+        ? root.faceMessage
+        : (root.faceRetryAllowed
+          ? (root.faceMessage.length > 0 ? root.faceMessage + " · " : "") + "F2 or click to retry face unlock"
+          : (root.authenticatingPassword ? "Checking password…" : "Face unlock paused — enter your password"))
+      color: Color.lock.text
+      font.family: Style.font.family
+      font.pixelSize: Math.round(root.fieldFontSize * 0.65)
+      horizontalAlignment: Text.AlignHCenter
+      wrapMode: Text.WordWrap
+
+      MouseArea {
+        anchors.fill: parent
+        enabled: root.inputEnabled && root.faceRetryAllowed
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+          root.wakeRequested()
+          root.retryFaceRequested()
+          root.forcePasswordFocus()
+        }
       }
     }
   }

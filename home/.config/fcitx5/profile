@@ -1,37 +1,38 @@
 [Groups/0]
 # Group Name
-Name=Default
-# Layout
-Default Layout=us
-# Default Input Method
-DefaultIM=cskk
-
-[Groups/0/Items/0]
-# Name
-Name=cskk
-# Layout
-Layout=
-
-[Groups/1]
-# Group Name
 Name=WithEn
 # Layout
 Default Layout=us
 # Default Input Method
 DefaultIM=keyboard-us
 
+[Groups/0/Items/0]
+# Name
+Name=cskk
+# Layout
+# Layout=
+
+[Groups/0/Items/1]
+# Name
+Name=keyboard-us
+# Layout
+# Layout=
+
+[Groups/1]
+# Group Name
+Name=Default
+# Layout
+Default Layout=us
+# Default Input Method
+DefaultIM=cskk
+
 [Groups/1/Items/0]
 # Name
 Name=cskk
 # Layout
-Layout=
-
-[Groups/1/Items/1]
-# Name
-Name=keyboard-us
-# Layout
-Layout=
+# Layout=
 
 [GroupOrder]
 0=Default
 1=WithEn
+

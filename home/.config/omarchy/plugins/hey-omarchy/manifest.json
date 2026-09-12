@@ -22,7 +22,7 @@
         "type": "enum",
         "label": "Control",
         "defaultValue": "main-monitor",
-        "options": ["main-monitor", "ddc-brightness", "fcitx-en", "lid", "keyboard-clean", "cursor-invisible", "bt-roba", "wwan", "tailscale", "cpu"]
+        "options": ["main-monitor", "ddc-brightness", "fcitx-en", "lid", "keyboard-clean", "cursor-invisible", "bt-roba", "wwan", "tailscale", "cpu", "cpu-frequency"]
       }
     ]
   }

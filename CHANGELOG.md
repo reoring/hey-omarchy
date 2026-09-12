@@ -2,13 +2,17 @@
 
 ## Unreleased
 
+- Restore custom bar widget visibility on current Omarchy by using the scoped `serviceFor()` API instead of the inaccessible private service registry.
+- Restore all ten audited pre-apply files, including built-in-only kana mapping, both moNa2 IDs, face-unlock service/UI, CPU-frequency widget definitions, Fcitx profiles/notifications, and original binding/helper text.
+- Bundle `hey-cpu-frequency` and register its bar entry; retain existing Howdy/PAM as an external host prerequisite without copying biometric data or changing authentication setup.
+- Bundle the existing `reoring.rain` wallpaper rain and glass-droplet plugin, including shader source and compiled QSB, without changing shell enablement.
 - Default CSKK to Ascii for new input contexts, retaining ASCII key passthrough and the existing `Ctrl-j` / `l` mode switches.
 - Default kana to tap Enter / hold Hyper via required keyd (200 ms tap limit, immediate chords), and move workspace switching to Hyper while retaining Alt+Shift window moves and Caps→Ctrl.
 - Add Henkan tap Backspace / hold Shift and Muhenkan original tap / hold Shift, using the same 200 ms tap limit.
 - Make A tap A / hold Ctrl with a 250 ms hold threshold, a 200 ms recent-typing guard, and no early Ctrl activation from overlapping taps.
 - Support kana Hyper+Shift workspace moves through a keyd composite layer, including held Henkan/Muhenkan as Shift, without changing Hyper-only workspace switching.
-- Install and back up the portable keyd configuration before Hyprland changes; retire the kana XKB map and restore prior keyboard configuration on rollback.
-- Register roBa's host-only right-thumb Hyper mapping alongside the portable kana fallback, sharing Hyper/Hyper+Shift layers through the existing keyd setup with transactional three-file installation and dependency-aware rollback; preserve firmware Enter taps, left Super, and trackball input.
+- Install and back up the keyboard configurations before Hyprland changes; retire the kana XKB map and restore prior keyboard configuration on rollback.
+- Register roBa/moNa2 host-only right-thumb Hyper mappings alongside built-in-only kana remaps, sharing Hyper/Hyper+Shift layers through the existing keyd setup with transactional three-file installation and dependency-aware rollback; preserve firmware Enter taps, left Super, and trackball input.
 
 ## v0.2.0 - 2026-09-07
 

@@ -28,6 +28,12 @@ Item {
   property bool fingerprintAuthenticating: false
   property bool passwordPamConfigured: false
   property bool fingerprintConfigured: false
+  property bool faceConfigured: false
+  property bool faceAuthenticating: false
+  property bool faceAttempted: false
+  property bool faceSleeping: false
+  property double faceDeadline: 0
+  property string faceMessage: ""
   property bool previewVisible: false
   property string enteredPassword: ""
   property string pendingPassword: ""
@@ -41,7 +47,9 @@ Item {
   property bool strandedLockResolved: false
 
   readonly property bool locked: lockRequested || sessionLock.locked || sessionLock.secure
-  readonly property bool authenticating: authenticatingPassword || fingerprintAuthenticating
+  readonly property bool authenticating: authenticatingPassword || fingerprintAuthenticating || faceAuthenticating
+  readonly property bool faceRetryAllowed: lockRequested && sessionLock.secure && faceConfigured
+    && !faceAuthenticating && !authenticatingPassword && !faceSleeping && faceSleepMonitor.running
 
   function realScreenCount() {
     var screens = Quickshell.screens || []
@@ -113,6 +121,10 @@ Item {
     if (!fingerprintCheckProc.running) fingerprintCheckProc.running = true
   }
 
+  function refreshFaceStatus() {
+    faceConfigFile.reload()
+  }
+
   function logEvent(event) {
     lastEvent = event
     lastEventAt = new Date().toISOString()
@@ -120,6 +132,9 @@ Item {
   }
 
   function resetAuthenticationState() {
+    cancelFace()
+    faceAttempted = false
+    faceMessage = ""
     enteredPassword = ""
     pendingPassword = ""
     failureMessage = ""
@@ -145,6 +160,7 @@ Item {
     Qt.callLater(function() {
       root.refreshBackground()
       root.refreshFingerprintStatus()
+      root.refreshFaceStatus()
     })
 
     return true
@@ -168,6 +184,8 @@ Item {
   }
 
   function runBlank() {
+    if (lockRequested) faceAttempted = true
+    cancelFace("Face scan paused")
     if (!blankProcess.running) blankProcess.running = true
   }
 
@@ -179,6 +197,8 @@ Item {
     pendingPassword = password
     failureMessage = ""
     authenticatingPassword = true
+    faceAttempted = true
+    cancelFace("Face scan cancelled")
 
     if (!passwordPam.start()) {
       handlePasswordFailure()
@@ -225,6 +245,49 @@ Item {
     }
   }
 
+  function cancelFace(message) {
+    faceAuthenticating = false
+    faceDeadline = 0
+    faceTimeoutTimer.stop()
+    if (facePam.active) facePam.abort()
+    if (message && lockRequested) faceMessage = message
+  }
+
+  function startInitialFace() {
+    if (!faceAttempted) startFace()
+  }
+
+  function startFace() {
+    if (!faceRetryAllowed || facePam.active) return
+
+    faceAttempted = true
+    faceAuthenticating = true
+    faceMessage = "Look at the camera, or enter your password"
+    faceDeadline = Date.now() + faceTimeoutTimer.interval
+    faceTimeoutTimer.restart()
+    if (!facePam.start()) cancelFace("Face unlock unavailable")
+  }
+
+  function retryFace() {
+    if (!faceRetryAllowed) return
+    runWake()
+    startFace()
+  }
+
+  function handleFaceFinished(result) {
+    // Abort/error invalidates the attempt before PAM can deliver another signal.
+    if (!faceAuthenticating) return
+    var withinDeadline = Date.now() < faceDeadline
+    cancelFace()
+    if (!lockRequested || !sessionLock.secure || authenticatingPassword || faceSleeping) return
+
+    if (faceConfigured && withinDeadline && result === PamResult.Success) {
+      finishUnlock()
+    } else {
+      faceMessage = "Face not recognized"
+    }
+  }
+
   WlSessionLock {
     id: sessionLock
 
@@ -237,7 +300,9 @@ Item {
         sessionLockStabilizeTimer.stop()
         pendingSessionLockTimer.stop()
         root.startFingerprint()
+        root.startInitialFace()
       }
+      if (!secure) root.cancelFace()
     }
 
     onLockStateChanged: {
@@ -269,6 +334,10 @@ Item {
         backgroundPath: root.backgroundPath
         backgroundVersion: root.backgroundVersion
         fingerprintConfigured: root.fingerprintConfigured
+        faceConfigured: root.faceConfigured
+        faceAuthenticating: root.faceAuthenticating
+        faceRetryAllowed: root.faceRetryAllowed
+        faceMessage: root.faceMessage
         authenticatingPassword: root.authenticatingPassword
         failureMessage: root.failureMessage
         failedAttempts: root.failedAttempts
@@ -277,6 +346,7 @@ Item {
         passwordText: root.enteredPassword
         onPasswordTextEdited: function(password) { root.enteredPassword = password }
         onSubmitPassword: function(password) { root.submitPassword(password) }
+        onRetryFaceRequested: root.retryFace()
         onClearFailureRequested: root.failureMessage = ""
         onWakeRequested: root.runWake()
       }
@@ -351,6 +421,28 @@ Item {
     }
   }
 
+  PamContext {
+    id: facePam
+    config: "omarchy-lock-face"
+    configDirectory: "/etc/pam.d"
+    user: root.userName
+
+    // This service is face-only: never supply a password or accept a prompt.
+    onResponseRequiredChanged: {
+      if (responseRequired) root.cancelFace("Face unlock unavailable")
+    }
+    onCompleted: function(result) { root.handleFaceFinished(result) }
+    onError: function(error) { root.cancelFace("Face unlock unavailable") }
+  }
+
+  Timer {
+    id: faceTimeoutTimer
+    // The trusted launcher has its own 10s + 1s bound; this bounds UI state too.
+    interval: 12000
+    repeat: false
+    onTriggered: root.cancelFace("Face scan timed out")
+  }
+
   Timer {
     id: fingerprintRetryTimer
     interval: 250
@@ -381,6 +473,48 @@ Item {
       root.fingerprintConfigured = String(fingerprintCheckStdout.text || "").trim() === "yes"
       if (root.lockRequested && root.fingerprintConfigured) root.startFingerprint()
       else if (!root.fingerprintConfigured && fingerprintPam.active) fingerprintPam.abort()
+    }
+  }
+
+  FileView {
+    id: faceConfigFile
+    path: "/etc/pam.d/omarchy-lock-face"
+    watchChanges: true
+    printErrors: false
+    onLoaded: {
+      root.faceConfigured = true
+      root.startInitialFace()
+    }
+    onLoadFailed: {
+      root.faceConfigured = false
+      root.cancelFace()
+    }
+    onFileChanged: {
+      root.faceConfigured = false
+      root.cancelFace()
+      reload()
+    }
+  }
+
+  // Same login1 signal subscription as omarchy-system-sleep-monitor. A wake
+  // does not re-arm recognition: another scan requires an explicit retry.
+  Process {
+    id: faceSleepMonitor
+    running: root.faceConfigured
+    command: ["/usr/bin/dbus-monitor", "--system",
+      "type='signal',sender='org.freedesktop.login1',interface='org.freedesktop.login1.Manager',member='PrepareForSleep'"]
+    onStarted: root.startInitialFace()
+    onExited: root.cancelFace("Face unlock unavailable")
+    stdout: SplitParser {
+      onRead: function(line) {
+        var value = String(line || "").trim()
+        if (value !== "boolean true" && value !== "boolean false") return
+        root.faceSleeping = value === "boolean true"
+        if (root.faceSleeping) {
+          if (root.lockRequested) root.faceAttempted = true
+          root.cancelFace("Face scan paused")
+        }
+      }
     }
   }
 
@@ -490,8 +624,11 @@ Item {
   Component.onCompleted: {
     refreshBackground()
     refreshFingerprintStatus()
+    refreshFaceStatus()
     checkStrandedLock()
   }
+
+  Component.onDestruction: resetAuthenticationState()
 
   IpcHandler {
     target: "lock"
@@ -516,6 +653,11 @@ Item {
         realScreens: root.realScreenCount(),
         passwordPam: root.passwordPamConfigured,
         fingerprint: root.fingerprintConfigured,
+        face: root.faceConfigured,
+        faceAuthenticating: root.faceAuthenticating,
+        faceAttempted: root.faceAttempted,
+        faceSleeping: root.faceSleeping,
+        faceRetryAllowed: root.faceRetryAllowed,
         authenticating: root.authenticating,
         displayTimeout: root.displayTimeoutSeconds,
         displayIdle: displayIdleMonitor.isIdle,

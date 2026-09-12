@@ -6,12 +6,7 @@ BarWidget {
   id: root
   moduleName: "hey-omarchy"
   readonly property string name: String(setting("name", "main-monitor"))
-  readonly property var service: {
-    // Services are registered after widget creation; read the registry property
-    // directly so replacing its map re-evaluates this binding.
-    var services = bar?.shell?._services
-    return services ? services["hey-omarchy"] || null : null
-  }
+  readonly property var service: bar?.shell?.serviceFor(moduleName) ?? null
   readonly property var status: service ? service.statuses[name] || ({}) : ({})
   property real scrollAccumulator: 0
 

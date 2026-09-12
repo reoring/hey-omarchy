@@ -91,6 +91,7 @@ preflight() {
     .config/omarchy/plugins/hey-omarchy/manifest.json \
     .config/omarchy/plugins/hey-omarchy-lock/manifest.json \
     .local/bin/hey-hypr-common \
+    .local/bin/hey-cpu-frequency \
     .local/bin/hypr-auto-rotate \
     .local/bin/hypr-ws \
     .local/bin/hyprsunset-adjust \

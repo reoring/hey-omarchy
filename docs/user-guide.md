@@ -8,7 +8,7 @@ Installed to: `~/.config/hypr/hey-omarchy-bindings.lua` (via `apply.sh`)
 ## Modifier keys
 
 - `Super`: the Windows/Command key
-- `Hyper`: `Super+Ctrl+Alt+Shift`, produced through keyd's shared layer by holding kana or the registered roBa right thumb.
+- `Hyper`: `Super+Ctrl+Alt+Shift`, produced through keyd's shared layer by holding built-in kana or the registered roBa/moNa2 right thumb.
 - `Alt`: either ordinary Alt key; used with Shift for window moves, not workspace switching.
 - `code:10..19`: the number row (`1..0` on most layouts)
 
@@ -18,9 +18,9 @@ Henkan taps Backspace and holds Shift; Muhenkan taps the original Muhenkan key a
 
 A uses `overloadi(a, overloadt(control, a, 250), 200)`: recent typing within 200 ms keeps A literal even if held. Otherwise, release before 250 ms for A or hold at least 250 ms for Ctrl. Quick intervening key taps do not force Ctrl, unlike `lettermod`/`overloadt2`. An A after a pause is emitted on release, so this intentionally trades immediate Ctrl chords and idle A auto-repeat for safer typing. To use Ctrl immediately after typing, use the ordinary Ctrl/Caps key.
 
-These kana/conversion/A remaps belong to the portable `[ids] *` fallback. roBa instead has an explicit keyboard configuration: its right thumb taps Enter / holds Right Command in firmware, and host keyd maps the hold (`rightmeta`) with `layer(hyper)`. Left Super and the trackball are unchanged, and roBa does not inherit the generic A→Ctrl remap. Only keyboard IDs `k:1d50:615e:c4fd5cd7` and `k:1d50:615e:a41a014e` are registered for USB/Bluetooth; other firmware/device names may need keyboard identification with `keyd monitor` and an updated bundle ID. The host mapping works with or without roBa's MAC layer because both emit `RIGHT_WIN`. It neither changes another machine nor flashes firmware.
+These kana/conversion/A remaps apply only to the built-in keyboard ID `0001:0001:3cf016cc`; there is no `[ids] *` fallback. roBa/moNa2 instead use their firmware Enter tap / Right Command hold, with host keyd mapping `rightmeta` to `layer(hyper)`. Left Super and trackball input are unchanged, and these external keyboards do not inherit A→Ctrl. The registered roBa IDs are `k:1d50:615e:c4fd5cd7` / `k:1d50:615e:a41a014e`; moNa2 uses `k:1d50:615e:90998e90` / `k:1d50:615e:534ac1e7`. Other firmware/device names may need identification with `keyd monitor` before updating the bundle. The mapping works with or without roBa's MAC layer and does not flash firmware.
 
-keyd is required. `apply.sh` uses the existing `setup-keyd.sh` to install `etc/keyd/kana-hyper.conf`, `etc/keyd/roba-hyper.conf`, and the shared `etc/keyd/hyper` into `/etc/keyd/` as one transaction before changing Hyprland defaults, with one interactive sudo escalation per setup invocation. `--skip-packages` requires keyd to be preinstalled. Explicit device configurations take precedence over the portable fallback. `apply.sh --check`, `apply.sh --dry-run`, and `setup-keyd.sh --dry-run` do not authenticate or change the host. To remake only this keyd setup, run `bash ./setup-keyd.sh`; registration in the bundle does not itself deploy it. See the [README](../README.md#apply) for apply commands, per-file backups, and conservative rollback that preserves user changes and shared include dependencies.
+keyd is required. `apply.sh` uses the existing `setup-keyd.sh` to install `etc/keyd/kana-hyper.conf`, `etc/keyd/roba-hyper.conf`, and the shared `etc/keyd/hyper` into `/etc/keyd/` as one transaction before changing Hyprland defaults, with one interactive sudo escalation per setup invocation. `--skip-packages` requires keyd to be preinstalled. `apply.sh --check`, `apply.sh --dry-run`, and `setup-keyd.sh --dry-run` do not authenticate or change the host. To remake only this keyd setup, run `bash ./setup-keyd.sh`; repository changes alone do not deploy it. Review local file differences before applying: managed files are replaced after backup, not merged. See the [README](../README.md#apply) for details.
 
 Emergency: press **Backspace+Escape+Enter together** to stop keyd if its remaps prevent normal input. Correct the configuration before restarting keyd.
 
@@ -90,10 +90,15 @@ You can also run `hypr-monitor-position menu` or `hypr-monitor-position left|rig
 
 ### Move active window
 
-Hold kana or roBa Hyper and an additional Shift, then press the same letter, semicolon, or number-row key:
+Hold built-in kana or roBa/moNa2 Hyper and an additional Shift, then press the same letter, semicolon, or number-row key:
 
-- Hyper+Shift+key moves the active window to that workspace (and focuses it). Either physical Shift or a held Henkan/Muhenkan mapped to Shift works, in either press order. keyd's shared `[hyper+shift]` layer distinguishes the additional Shift from Hyper's emulated Shift and emits the existing Alt+Shift move shortcut. Ordinary Alt+Shift still works. This distinction requires entering keyd's shared Hyper layer, as both the kana and roBa configurations do; a keyboard emitting only four modifiers does not provide it.
+- Hyper+Shift+key moves the active window to that workspace (and focuses it). Either physical Shift or a held Henkan/Muhenkan mapped to Shift works, in either press order. keyd's shared `[hyper+shift]` layer distinguishes the additional Shift from Hyper's emulated Shift and emits the existing Alt+Shift move shortcut. Ordinary Alt+Shift still works. This distinction requires entering keyd's shared Hyper layer, as the built-in and roBa/moNa2 configurations do; a keyboard emitting only four modifiers does not provide it.
 - The old Alt-only workspace-switching bindings are explicitly removed.
+
+## Restored face unlock and CPU frequency control
+
+- The lock screen shows face-scan status and offers F2/click to retry. Password submission, sleep, and display blanking cancel recognition. The existing trusted Howdy/PAM setup and enrolled models are prerequisites, not installed or copied by this bundle; without face PAM, face unlock stays disabled.
+- The CPU-frequency widget reports upper limits/boost every 30 seconds. Left click opens its menu; right click opens btop. Changes require Polkit authorization and supported cpufreq controls, preserve lower limits, and are temporary. `hey-cpu-frequency status` is read-only.
 
 ## Window / display adjustments
 
@@ -120,7 +125,7 @@ Notes:
 ## Where to change things
 
 - Keybindings live in `~/.config/hypr/hey-omarchy-bindings.lua`; input and opacity rules live in `~/.config/hypr/hey-omarchy.lua`.
-- Edit the bundle's `etc/keyd/kana-hyper.conf` for portable kana/conversion/A tap/hold mappings, `etc/keyd/roba-hyper.conf` for the exact-ID roBa right-thumb hold mapping, and `etc/keyd/hyper` for shared Hyper/Hyper+Shift behavior. Both `.conf` files use `include hyper`; `setup-keyd.sh` installs all three into `/etc/keyd/`. Hyprland's `kb_file` is empty; the old kana XKB file is retired.
+- Edit `etc/keyd/kana-hyper.conf` for built-in-only kana/conversion/A tap/hold mappings, `etc/keyd/roba-hyper.conf` for exact-ID roBa/moNa2 right-thumb holds, and `etc/keyd/hyper` for shared Hyper/Hyper+Shift behavior. Both `.conf` files use `include hyper`; `setup-keyd.sh` installs all three into `/etc/keyd/`. Hyprland's `kb_file` is empty; the old kana XKB file is retired.
 - Workspace routing logic is implemented by `~/.local/bin/hypr-ws` and `~/.local/bin/hypr-main-monitor-toggle`.
 
 ## Stock shortcuts overridden

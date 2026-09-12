@@ -11,6 +11,7 @@ var modules = [
   { name: "fcitx-en", helper: "waybar-fcitx-en", interval: 3600, left: ["fcitx-en-toggle", "toggle"], middle: ["fcitx-en-toggle", "on"], right: ["fcitx-en-toggle", "off"] },
   { name: "keyboard-clean", helper: "waybar-keyboard-clean", interval: 3600, left: ["hypr-keyboard-clean-toggle", "toggle"], right: ["hypr-keyboard-clean-toggle", "off"] },
   { name: "cursor-invisible", helper: "waybar-cursor-invisible", interval: 3600, left: ["hypr-cursor-invisible-toggle", "toggle"], right: ["hypr-cursor-invisible-toggle", "off"] },
+  { name: "cpu-frequency", helper: "hey-cpu-frequency", interval: 30, left: ["hey-cpu-frequency", "menu"], right: ["omarchy-launch-or-focus-tui", "btop"], rightSystem: true },
   { name: "cpu", left: ["omarchy-launch-or-focus-tui", "btop"], leftSystem: true, right: ["alacritty"], rightSystem: true }
 ]
 
@@ -31,6 +32,7 @@ function opacity(name, status) {
   else if (name === "wwan") dim = ["disconnected", "absent", "unavailable"]
   else if (name === "bt-roba") dim = ["disconnected", "unpaired", "unknown"]
   else if (name === "ddc-brightness") dim = ["unavailable"]
+  else if (name === "cpu-frequency") dim = ["unknown"]
   else if (name === "fcitx-en" || name === "cursor-invisible") dim = ["unknown"]
   for (var i = 0; i < dim.length; i++) if (hasClass(status, dim[i])) return name === "tailscale" ? 0.4 : 0.55
   return 1

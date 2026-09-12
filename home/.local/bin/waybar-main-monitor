@@ -51,13 +51,11 @@ External position: $(cat "$LAYOUT_FILE" 2>/dev/null || echo auto)
 
 Click: toggle main (Super+Ctrl+M)
 Right click: set external position (left/right/up/down)
-Kana: tap Enter (<200 ms), hold Hyper (Super+Ctrl+Alt+Shift)
-Hyper+QWERTASDFG: main workspaces (1-10)
-Hyper+ZXCVB: main workspaces (11-15)
-Hyper+YUIOP: main workspaces (16-20); Hyper+semicolon: 25
-Alt+H/J/K/L and Alt+Shift+H/J/K/L: unbound for tmux
-Hyper+1..0: parking (99-90; single monitor: 11-20)
-Kana Hyper+Shift+workspace key (or Alt+Shift): move window
+AltGr+QWERTASDFG: main workspaces (1-10)
+AltGr+ZXCVB: main workspaces (11-15)
+AltGr+YUIOP: main workspaces (16-20); AltGr+semicolon: 25
+AltGr+H/J/K/L: unbound for tmux
+AltGr+1..0: parking (when external connected)
 EOF
 )
 
