@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reapplying a multi-widget plugin must not reset or duplicate user settings."""
+"""Compact bar migration preserves clock settings and unrelated configuration."""
 import json
 import subprocess
 import sys
@@ -14,8 +14,9 @@ with tempfile.TemporaryDirectory() as directory:
     clock = {'id': 'omarchy.clock', 'format': 'HH:mm:ss'}
     unrelated_plugin = {'id': 'local.example', 'setting': 42}
     config = {
-        'bar': {'position': 'bottom', 'layout': {
-            'left': [custom_widget], 'center': [clock], 'right': ['omarchy.power']}},
+        'bar': {'position': 'bottom', 'centerAnchor': 'omarchy.clock', 'layout': {
+            'left': ['omarchy.menu', 'omarchy.workspaces', custom_widget], 'center': [clock], 'right': [
+                {'id': 'hey-omarchy', 'name': 'fcitx-en'}, 'omarchy.power']}},
         'plugins': [unrelated_plugin],
         'disabledPlugins': ['local.disabled', 'hey-omarchy'],
         'idle': {'lock': 300, 'customSetting': True},
@@ -23,11 +24,14 @@ with tempfile.TemporaryDirectory() as directory:
     }
     fragment = {
         'plugins': [{'id': 'hey-omarchy'}, {'id': 'hey-omarchy-lock'}],
+        'barSettings': {'centerAnchor': ''},
+        'barRemovals': ['omarchy.workspaces', 'hey-omarchy'],
+        'barMoves': [
+            {'widget': 'omarchy.clock', 'section': 'left', 'after': 'omarchy.menu'},
+        ],
         'barAdditions': [
             {'section': 'right', 'before': 'omarchy.power', 'entry': {
-                'id': 'hey-omarchy', 'name': 'main-monitor'}},
-            {'section': 'right', 'before': 'omarchy.power', 'entry': {
-                'id': 'hey-omarchy', 'name': 'fcitx-en'}},
+                'id': 'hey-omarchy'}},
         ],
         'idle': {'lock': 900},
         'disabledPlugins': ['omarchy.lock'],
@@ -45,14 +49,14 @@ with tempfile.TemporaryDirectory() as directory:
 
     first = apply()
     assert first['bar']['position'] == 'bottom'
-    assert first['bar']['layout']['left'] == [custom_widget]
-    assert first['bar']['layout']['center'] == [clock]
-    assert first['bar']['layout']['right'] == [
-        {'id': 'hey-omarchy', 'name': 'fcitx-en'}, 'omarchy.power']
+    assert first['bar']['centerAnchor'] == ''
+    assert first['bar']['layout']['left'] == ['omarchy.menu', clock]
+    assert first['bar']['layout']['center'] == []
+    assert first['bar']['layout']['right'] == [{'id': 'hey-omarchy'}, 'omarchy.power']
     assert unrelated_plugin in first['plugins']
     assert first['unrelatedSetting'] == config['unrelatedSetting']
     assert first['idle'] == {'lock': 900, 'customSetting': True}
     assert first['disabledPlugins'] == ['local.disabled', 'omarchy.lock']
     assert first['cloneSourceRestores'] == ['hey-omarchy-lock']
     assert apply() == first, 'reapplication must retain positions and avoid duplicate widgets/plugins'
-print('PASS: shell merge preserves customizations and repeated widgets')
+print('PASS: compact bar migration preserves clock settings and is idempotent')

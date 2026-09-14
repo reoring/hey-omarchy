@@ -5,40 +5,67 @@ import "Widgets.js" as Widgets
 BarWidget {
   id: root
   moduleName: "hey-omarchy"
-  readonly property string name: String(setting("name", "main-monitor"))
   readonly property var service: bar?.shell?.serviceFor(moduleName) ?? null
-  readonly property var status: service ? service.statuses[name] || ({}) : ({})
-  property real scrollAccumulator: 0
 
-  visible: button.hasVisualContent
-  implicitWidth: button.hasVisualContent ? button.implicitWidth : 0
-  implicitHeight: button.hasVisualContent ? button.implicitHeight : 0
+  visible: true
+  implicitWidth: controls.implicitWidth
+  implicitHeight: controls.implicitHeight
 
-  WidgetButton {
-    id: button
-    anchors.fill: parent
-    bar: root.bar
-    text: root.status.text === undefined ? "" : String(root.status.text)
-    tooltipText: String(root.status.tooltip || "")
-    horizontalMargin: root.name === "ddc-brightness" ? 11.5 : 7.5
-    fontSize: 12
-    activeColor: "#a55555"
-    active: Widgets.active(root.name, root.status)
-    opacity: Widgets.opacity(root.name, root.status)
-    textRotation: root.vertical ? -90 : 0
+  Grid {
+    id: controls
+    anchors.centerIn: parent
+    spacing: 0
+    columns: root.vertical ? 1 : Widgets.modules.length + 1
 
-    onPressed: function(button) {
-      if (!root.service) return
-      var action = button === Qt.RightButton ? "right" : button === Qt.MiddleButton ? "middle" : "left"
-      root.service.runAction(root.name, action)
+    Repeater {
+      model: root.service && root.service.controlsExpanded ? Widgets.modules : []
+
+      delegate: WidgetButton {
+        id: controlButton
+        required property var modelData
+        readonly property var status: root.service ? root.service.statuses[modelData.name] || ({}) : ({})
+        property real scrollAccumulator: 0
+
+        bar: root.bar
+        visible: hasVisualContent && !Widgets.hasClass(status, "hidden")
+        text: status.text === undefined ? "" : String(status.text)
+        tooltipText: String(status.tooltip || "")
+        horizontalMargin: modelData.name === "ddc-brightness" ? 11.5 : 7.5
+        fontSize: 12
+        activeColor: "#a55555"
+        active: Widgets.active(modelData.name, status)
+        opacity: Widgets.opacity(modelData.name, status)
+        textRotation: root.vertical ? -90 : 0
+
+        onPressed: function(button) {
+          if (!root.service) return
+          var action = button === Qt.RightButton ? "right" : button === Qt.MiddleButton ? "middle" : "left"
+          root.service.runAction(modelData.name, action)
+        }
+        onWheelMoved: function(delta) {
+          if (modelData.name !== "ddc-brightness" || !root.service || delta === 0) return
+          scrollAccumulator += delta / 120
+          if (Math.abs(scrollAccumulator) < 0.05) return
+          root.service.runAction(modelData.name, scrollAccumulator > 0 ? "up" : "down")
+          scrollAccumulator = 0
+        }
+        onTooltipTextChanged: if (tooltipHovered && bar) bar.showTooltip(controlButton, tooltipText)
+      }
     }
-    onWheelMoved: function(delta) {
-      if (root.name !== "ddc-brightness" || !root.service || delta === 0) return
-      root.scrollAccumulator += delta / 120
-      if (Math.abs(root.scrollAccumulator) < 0.05) return
-      root.service.runAction(root.name, root.scrollAccumulator > 0 ? "up" : "down")
-      root.scrollAccumulator = 0
+
+    WidgetButton {
+      id: toggleButton
+      bar: root.bar
+      text: root.service && root.service.controlsExpanded ? "‹" : "⋯"
+      tooltipText: root.service && root.service.controlsExpanded ? "Hide Hey Omarchy controls" : "Show Hey Omarchy controls"
+      horizontalMargin: 7.5
+      fontSize: 12
+      textRotation: root.vertical ? -90 : 0
+
+      onPressed: function(button) {
+        if (button === Qt.LeftButton && root.service) root.service.controlsExpanded = !root.service.controlsExpanded
+      }
+      onTooltipTextChanged: if (tooltipHovered && bar) bar.showTooltip(toggleButton, tooltipText)
     }
-    onTooltipTextChanged: if (tooltipHovered && bar) bar.showTooltip(button, tooltipText)
   }
 }

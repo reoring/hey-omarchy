@@ -70,7 +70,9 @@ This setup treats one display as the "main" monitor:
 
 Switch which monitor is considered "main" with `Super+Ctrl+M`.
 
-The Quattro bar's main-monitor widget is clickable:
+
+Indicators, keyboard layout, weather, and updates also sit beside the left clock, leaving the center empty.
+The bar hides workspace labels and places the existing clock beside the left menu; workspace shortcuts are unchanged. Click `⋯` on the right to show personal controls, and `‹` to hide them. The drawer starts closed after a shell restart; hiding it does not turn off any feature. Inside it, the main-monitor control is clickable:
 
 - Left click: toggle main monitor
 - Right click: set external monitor position (left/right/up/down)
@@ -99,6 +101,13 @@ Hold built-in kana or roBa/moNa2 Hyper and an additional Shift, then press the s
 
 - The lock screen shows face-scan status and offers F2/click to retry. Password submission, sleep, and display blanking cancel recognition. The existing trusted Howdy/PAM setup and enrolled models are prerequisites, not installed or copied by this bundle; without face PAM, face unlock stays disabled.
 - The CPU-frequency widget reports upper limits/boost every 30 seconds. Left click opens its menu; right click opens btop. Changes require Polkit authorization and supported cpufreq controls, preserve lower limits, and are temporary. `hey-cpu-frequency status` is read-only.
+
+## Rain effect toggle
+
+- Left-click the rain icon on the right side of the bar to toggle wallpaper rain and glass droplets together. Right-click always turns them off.
+- The icon is a cloud when disabled and a rainy cloud when enabled. Both use the normal color; hover to see the current state.
+- Turning rain off unloads the plugin, stopping particles, droplet simulation, and shader rendering. The selection persists across logins.
+- Commands: `hey-rain toggle`, `hey-rain on`, and `hey-rain off`. `hey-rain status` returns bar status JSON.
 
 ## Window / display adjustments
 

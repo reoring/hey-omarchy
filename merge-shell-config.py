@@ -15,12 +15,45 @@ def merge(config, fragment):
         if not any(plugin['id'] == entry['id'] for plugin in plugins):
             plugins.append(entry)
 
-    layout = config.setdefault('bar', {}).setdefault('layout', {})
+    bar = config.setdefault('bar', {})
+    bar.update(fragment.get('barSettings', {}))
+    layout = bar.setdefault('layout', {})
     for section in ('left', 'center', 'right'):
         layout.setdefault(section, [])
 
     def identity(entry):
         return (entry, None) if isinstance(entry, str) else (entry['id'], entry.get('name'))
+
+    def matches(entry, selector):
+        if isinstance(selector, str):
+            return identity(entry)[0] == selector
+        return identity(entry) == identity(selector)
+
+    def insert(widgets, entry, placement):
+        before = placement.get('before')
+        after = placement.get('after')
+        if before is not None:
+            index = next((i for i, widget in enumerate(widgets) if matches(widget, before)), len(widgets))
+        elif after is not None:
+            index = next((i + 1 for i, widget in enumerate(widgets) if matches(widget, after)), len(widgets))
+        else:
+            index = len(widgets)
+        widgets.insert(index, entry)
+
+    for selector in fragment.get('barRemovals', []):
+        for widgets in layout.values():
+            widgets[:] = [widget for widget in widgets if not matches(widget, selector)]
+
+    for move in fragment.get('barMoves', []):
+        entry = None
+        for widgets in layout.values():
+            index = next((i for i, widget in enumerate(widgets)
+                          if matches(widget, move['widget'])), None)
+            if index is not None:
+                entry = widgets.pop(index)
+                break
+        if entry is not None:
+            insert(layout[move['section']], entry, move)
 
     for addition in fragment.get('barAdditions', []):
         entry = addition['entry']
@@ -28,11 +61,7 @@ def merge(config, fragment):
         if any(identity(widget) == identity(entry)
                for widgets in layout.values() for widget in widgets):
             continue
-        widgets = layout[addition['section']]
-        before = addition.get('before')
-        index = next((i for i, widget in enumerate(widgets)
-                      if identity(widget)[0] == before), len(widgets))
-        widgets.insert(index, entry)
+        insert(layout[addition['section']], entry, addition)
 
     disabled = [plugin for plugin in config.get('disabledPlugins', []) if plugin not in enabled]
     for plugin in fragment.get('disabledPlugins', []):

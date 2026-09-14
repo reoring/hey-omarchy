@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Toggle the wallpaper rain service through the shell's persisted plugin API."""
+import argparse
+import json
+import subprocess
+import sys
+
+
+PLUGIN = 'reoring.rain'
+
+
+def shell_call(method, *args):
+    return subprocess.run(
+        ['omarchy-shell', 'shell', method, *args],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def enabled():
+    plugins = json.loads(shell_call('listPlugins'))
+    for plugin in plugins:
+        if plugin['id'] == PLUGIN:
+            return plugin['enabled']
+    raise RuntimeError('Wallpaper Rain plugin is not installed')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', nargs='?', default='status',
+                        choices=('status', 'toggle', 'on', 'off'))
+    action = parser.parse_args().action
+    try:
+        current = enabled()
+        if action == 'status':
+            print(json.dumps({
+                'text': '\U000f0597' if current else '\U000f0590',
+                'tooltip': f'Rain: {"ON" if current else "OFF"}\nClick: toggle rain and glass droplets\nRight click: turn off',
+                'class': 'active' if current else 'inactive',
+            }))
+            return 0
+        target = not current if action == 'toggle' else action == 'on'
+        if shell_call('setPluginEnabled', PLUGIN, 'true' if target else 'false') != 'ok':
+            raise RuntimeError('Shell could not change the rain plugin state')
+        subprocess.run(['omarchy-shell', '-q', 'hey-omarchy', 'refresh', 'rain'],
+                       check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 0
+    except (OSError, subprocess.CalledProcessError, ValueError, KeyError, RuntimeError) as error:
+        print(f'hey-rain: {error}', file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

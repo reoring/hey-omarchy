@@ -10,17 +10,22 @@
   ],
   "disabledPlugins": ["omarchy.lock"],
   "cloneSourceRestores": ["hey-omarchy-lock"],
+  "barSettings": {
+    "centerAnchor": ""
+  },
+  "barRemovals": [
+    "omarchy.workspaces",
+    "hey-omarchy"
+  ],
+  "barMoves": [
+    { "widget": "omarchy.clock", "section": "left", "after": "omarchy.menu" },
+    { "widget": "omarchy.indicators", "section": "left", "after": "omarchy.clock" },
+    { "widget": "omarchy.keyboard-layout", "section": "left", "after": "omarchy.indicators" },
+    { "widget": "omarchy.weather", "section": "left", "after": "omarchy.keyboard-layout" },
+    { "widget": "omarchy.system-update", "section": "left", "after": "omarchy.weather" },
+    { "widget": "omarchy.agents", "section": "right", "after": "omarchy.bluetooth" }
+  ],
   "barAdditions": [
-    { "section": "right", "before": "omarchy.bluetooth", "entry": { "id": "hey-omarchy", "name": "tailscale" } },
-    { "section": "right", "before": "omarchy.bluetooth", "entry": { "id": "hey-omarchy", "name": "bt-roba" } },
-    { "section": "right", "before": "omarchy.network", "entry": { "id": "hey-omarchy", "name": "wwan" } },
-    { "section": "right", "before": "omarchy.monitor", "entry": { "id": "hey-omarchy", "name": "cpu" } },
-    { "section": "right", "before": "omarchy.monitor", "entry": { "id": "hey-omarchy", "name": "cpu-frequency" } },
-    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "ddc-brightness" } },
-    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "main-monitor" } },
-    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "lid" } },
-    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "fcitx-en" } },
-    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "keyboard-clean" } },
-    { "section": "right", "before": "omarchy.power", "entry": { "id": "hey-omarchy", "name": "cursor-invisible" } }
+    { "section": "right", "after": "omarchy.tray", "entry": { "id": "hey-omarchy" } }
   ]
 }

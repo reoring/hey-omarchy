@@ -2,7 +2,7 @@
 
 reoring's personal configuration bundle for **Omarchy Quattro (4.x)**, using native Hyprland Lua and the Quickshell desktop shell. Omarchy 3's Hyprland/Waybar configuration is no longer installed.
 
-The bundle leaves Omarchy-managed source files untouched. `apply.sh` backs up changed user files, installs dedicated modules, appends their loader to `hyprland.lua`, and merges custom widgets into the existing `shell.json`. It also installs the system keyd configuration described below using sudo. Ordinary user Lua modules, standard bar widgets, and unrelated shell settings are preserved.
+The bundle leaves Omarchy-managed source files untouched. `apply.sh` backs up changed user files, installs dedicated modules, appends their loader to `hyprland.lua`, and merges custom widgets into the existing `shell.json`. It also installs the system keyd configuration described below using sudo. Ordinary user Lua modules and unrelated shell settings are preserved. The bar hides workspace labels, moves the existing clock beside the left menu, and groups personal controls behind one right-side toggle.
 
 Docs: [Japanese README](README.ja.md), [shortcut guide](docs/user-guide.md), [Japanese shortcut guide](user-guide.ja.md), [CSKK notes](japanese/cskk.md).
 
@@ -43,6 +43,8 @@ The lock plugin is based on Omarchy **4.0.2**, with the host's face-unlock exten
 
 The `cpu-frequency` widget uses the bundled `hey-cpu-frequency` helper. Status is read-only and refreshes every 30 seconds. Left click opens upper-limit/uncap/boost choices; right click opens btop. Changes require Polkit authorization through `pkexec`, supported Linux cpufreq controls, and the Omarchy menu/notification commands. Limits are temporary, not fixed CPU clocks, and may reset on reboot or power-management changes.
 
+Click `⋯` on the right to show all 13 personal controls; click `‹` to hide them again. The drawer starts closed after a shell restart. Hiding controls does not disable their functions or status polling. Standard network, audio, and power widgets stay visible.
+
 ## Apply
 
 From this directory:
@@ -70,7 +72,7 @@ Hyprland uses an empty `kb_file` and retains `kb_options = "ctrl:nocaps"`; the o
 
 Applying briefly restarts `omarchy-fcitx5.service` if active, validates and reloads Hyprland, and restarts the desktop shell to avoid stale cached QML components. Applications and the login session stay running. If a keyd remap makes typing unusable, press **Backspace+Escape+Enter together** to stop keyd; fix its configuration before starting it again.
 
-Unchanged files are skipped. Reapplication preserves existing custom widget positions/settings and does not duplicate widgets. **Managed files are replaced by the repository copies, not merged**, after saving adjacent timestamped backups; review local changes before applying and bring them into the bundle first. Shell JSON is merged, but bundle-owned settings such as idle timeouts are reapplied. Old live `.conf` files and Quattro migration backups are not deleted.
+Unchanged files are skipped. Reapplication replaces the old individual personal widgets with one control drawer, removes workspace labels, and moves the clock left without changing its format. Other widgets remain intact. **Managed files are replaced by the repository copies, not merged**, after saving adjacent timestamped backups; review local changes before applying and bring them into the bundle first. Shell JSON is merged, but bundle-owned settings such as idle timeouts and the compact bar layout are reapplied. Old live `.conf` files and Quattro migration backups are not deleted.
 
 Options:
 
@@ -105,7 +107,7 @@ omarchy shell lock status
 bash tests/run.sh
 ```
 
-Edit the bundle's `home/` files and reapply, or edit installed user copies directly. `home/.config/omarchy/hey-omarchy.json` is an installer fragment, not a replacement shell configuration. Its `barAdditions` are merged by widget id and name; standard widgets and unrelated settings remain intact.
+Edit the bundle's `home/` files and reapply, or edit installed user copies directly. `home/.config/omarchy/hey-omarchy.json` is an installer fragment, not a replacement shell configuration. `barRemovals` remove matching widgets, `barMoves` relocate existing entries with their settings intact, and `barAdditions` insert missing entries; `barSettings` overrides bar-level options. Unrelated settings remain intact.
 
 Quattro's stock Super+J/K/L and several Ctrl shortcuts are intentionally overridden; see the shortcut guide. `Super+Ctrl+Y` now toggles the native bar, and `Super+Ctrl+Alt+O` toggles persistent automatic rotation.
 

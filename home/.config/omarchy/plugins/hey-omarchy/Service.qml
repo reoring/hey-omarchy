@@ -11,6 +11,7 @@ Item {
   readonly property string bin: Quickshell.env("HOME") + "/.local/bin/"
   property var statuses: ({})
   property var cpuPrevious: null
+  property bool controlsExpanded: false
 
   function publish(name, status) {
     var next = Object.assign({}, statuses)
