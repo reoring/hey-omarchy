@@ -33,6 +33,7 @@ Omarchy 管理下のソースは変更しません。`apply.sh` は変更前の�
 | `/etc/keyd/roba-hyper.conf` | roBa／moNa2 キーボードの完全一致 ID と `rightmeta = layer(hyper)`。`hyper` を include |
 | `/etc/keyd/hyper` | 共通の `[hyper:C-A-M]` レイヤー。追加の Shift でウィンドウ移動 |
 | `~/.config/hypr/hey-omarchy-options.lua` | インストーラーが生成する画面/NVIDIA オプション |
+| `~/.config/hypr/hey-omarchy-gpu.lua` | `gpu-mode` が生成。存在すれば GPU 関連の環境変数を上書き |
 | `~/.config/omarchy/shell.json` | 既存バーに独自ウィジェットを追加、アイドル設定 |
 | `~/.config/omarchy/plugins/hey-omarchy/` | 共有ステータスサービスとバー部品 |
 | `~/.config/omarchy/plugins/hey-omarchy-lock/` | 元の画面オフ時間を再現するロック部品 |
@@ -85,6 +86,7 @@ Hyprland の `kb_file` は空にし、`kb_options = "ctrl:nocaps"` を保持し�
 - `--force-monitors`: preferred 解像度・自動配置・自動スケールの汎用設定を適用。通常は既存 `monitors.lua` を保持。
 - `--force-nvidia-env` / `--skip-nvidia-env`: NVIDIA 自動判定を上書き。通常の AMD/Intel 環境には NVIDIA 変数を設定しません。
 - `--with-shaders`: Aether のシェーダーへのユーザー側シンボリックリンクを作成。
+- `--skip-gpu-tools`: `gpu-mode` / `prime-run` の配布を常にスキップ。
 
 ### 任意のハードウェア設定
 
@@ -97,6 +99,35 @@ bash ./setup-mpvpaper-live-wallpaper.sh --help
 DDC は対応外部モニター、WWAN はモデムと関連ツールが必要です。未接続・未対応ならその状態を表示します。自動回転には iio-sensor-proxy の `monitor-sensor` が必要です。
 
 CSKK が必要とする場合のみ、従来どおり sudo で `/etc/ld.so.conf.d/cskk.conf` に `/usr/lib/cskk` を登録します。詳細は CSKK の説明を参照してください。
+
+### GPU 電源管理（Intel + NVIDIA ハイブリッド）
+
+Intel iGPU + NVIDIA dGPU（Optimus）構成のラップトップ向けに、3モードを切り替えられる `gpu-mode` を同梱しています。
+
+```sh
+gpu-mode status   # 現在のモード + PCI ランタイム状態 + nvidia-smi を表示
+gpu-mode nvidia   # NVIDIA プライマリ（デフォルト）。Hyprland を再起動。
+gpu-mode prime    # iGPU プライマリ。NVIDIA は prime-run 経由のみ使用（D3cold で寝る）。Hyprland を再起動。
+gpu-mode off      # NVIDIA モジュールを完全に blacklist（バッテリー最重視）。再起動が必要。
+gpu-mode on       # blacklist を解除（再起動後は prime モードで起動）。
+
+prime-run blender # prime モード中に個別アプリを NVIDIA で実行
+```
+
+`gpu-mode` は `~/.config/hypr/hey-omarchy-gpu.lua` を生成します。`hey-omarchy.lua` は Omarchy 既定の `nvidia.lua` より後でこれを読み込むため、選択したモードがハードウェア自動判定より優先されます。ファイルが無ければインストーラーの `options.nvidia` に従います。生成物はリポジトリに含まれないので、`apply.sh` を再実行してもモードは維持されます。Quattro 以前の `~/.config/hypr/envs.conf` 内のマーカー区間は、最初のモード切替時に削除されます。
+
+`prime` モードで dGPU を実際に D3cold まで眠らせるには、modprobe オプションを 1 度だけ追加してください（sudo 必要）。
+
+```sh
+sudo install -m 644 /dev/stdin /etc/modprobe.d/nvidia-power-management.conf <<'EOF'
+options nvidia NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/var/tmp
+options nvidia NVreg_DynamicPowerManagement=0x02
+EOF
+```
+
+その後再起動（または `nvidia` モジュールの再読み込み）すれば、idle 時に `gpu-mode status` で `PCI power state: D3cold` が見えるようになります。
+
+注意: mux-less 機の HDMI/DP は NVIDIA dGPU 直結のことが多く、`gpu-mode off` 中は外部ディスプレイが映らない可能性が高いです。内蔵ディスプレイのみで運用する場面で使ってください。
 
 ## 確認とカスタマイズ
 

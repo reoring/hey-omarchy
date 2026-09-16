@@ -11,6 +11,7 @@ WITH_SHADERS=0
 FORCE_MONITORS=0
 FORCE_NVIDIA_ENV=0
 SKIP_NVIDIA_ENV=0
+SKIP_GPU_TOOLS=0
 CHECK_ONLY=0
 SKIP_PACKAGES=0
 APPLY_GTK_GSETTINGS=1
@@ -30,6 +31,7 @@ Options:
   --force-monitors     Apply bundled hardware-specific monitor settings
   --force-nvidia-env   Apply NVIDIA environment settings
   --skip-nvidia-env    Never apply NVIDIA environment settings
+  --skip-gpu-tools     Never install gpu-mode / prime-run helpers
   -h, --help           Show help
 EOF
 }
@@ -46,6 +48,7 @@ while [[ $# -gt 0 ]]; do
     --force-monitors) FORCE_MONITORS=1 ;;
     --force-nvidia-env) FORCE_NVIDIA_ENV=1 ;;
     --skip-nvidia-env) SKIP_NVIDIA_ENV=1 ;;
+    --skip-gpu-tools) SKIP_GPU_TOOLS=1 ;;
     -h|--help) usage; exit 0 ;;
     *)
       echo "Unknown option: $1" >&2
@@ -110,6 +113,8 @@ preflight() {
     .local/bin/bt-roba \
     .local/bin/bluez-agent-auto \
     .local/bin/bluez-discovery-keepalive \
+    .local/bin/gpu-mode \
+    .local/bin/prime-run \
     .local/bin/waybar-main-monitor \
     .local/bin/waybar-ddc-brightness \
     .local/bin/waybar-lid-suspend \
@@ -868,7 +873,12 @@ done
 # JSON status producers retain their command names but are consumed by Quickshell.
 for src in "$SRC_HOME"/.local/bin/*; do
   [[ -f "$src" ]] || continue
-  install_file "$src" "$HOME/.local/bin/$(basename "$src")" 0755
+  name="$(basename "$src")"
+  if (( SKIP_GPU_TOOLS )) && [[ "$name" == "gpu-mode" || "$name" == "prime-run" ]]; then
+    log "skip: ~/.local/bin/$name (--skip-gpu-tools)"
+    continue
+  fi
+  install_file "$src" "$HOME/.local/bin/$name" 0755
 done
 
 configure_hyprland

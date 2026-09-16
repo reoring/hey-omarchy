@@ -41,7 +41,11 @@ end
 
 -- Installer decides this from hardware detection and explicit force/skip flags.
 -- No NVIDIA variables are applied to an AMD/Intel machine by this bundle.
-if options.nvidia then
+-- `gpu-mode` generates hey-omarchy-gpu.lua; when it exists it owns the GPU
+-- environment (iGPU-primary PRIME modes included) and wins over the default.
+local gpu = require("default.hypr.require_optional").module("hypr.hey-omarchy-gpu")
+
+if not gpu and options.nvidia then
   hl.env("NVD_BACKEND", "direct")
   hl.env("LIBVA_DRIVER_NAME", "nvidia")
   hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
