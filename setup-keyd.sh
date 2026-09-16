@@ -238,7 +238,19 @@ if (( ROLLBACK )); then
     keyd reload
   fi
 else
+  # `systemctl --now` returns once the unit is started, but keyd creates its
+  # control socket slightly later, so a cold start needs the socket to appear
+  # before reloading. Reload itself still runs once, so a genuine reload
+  # failure keeps aborting the transaction.
+  keyd_was_active=0
+  systemctl is-active --quiet keyd.service && keyd_was_active=1
   systemctl enable --now keyd.service
+  if (( ! keyd_was_active )); then
+    for _ in {1..30}; do
+      [[ -S /run/keyd.socket || -S /var/run/keyd.socket ]] && break
+      sleep 0.1
+    done
+  fi
   keyd reload
   systemctl is-active --quiet keyd.service
 fi
