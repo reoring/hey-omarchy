@@ -8,17 +8,17 @@
 ## 修飾キーの表記
 
 - `Super`: Windows/Command キー
-- `Hyper`: `Super+Ctrl+Alt+Shift`。keyd の共通レイヤーにより、内蔵かなキーまたは登録済み roBa／moNa2 の右親指をホールドして使用できます。
-- `Alt`: 通常の左右どちらかの Alt キー。Shift 併用でウィンドウを移動し、ワークスペースの切替には使いません。
+- `Hyper`: `Super+Ctrl+Alt`。登録済み内蔵キーボードでは右 Alt が直接 Hyper になり、内蔵かなキーまたは登録済み roBa／moNa2 の右親指のホールドでも入力できます。
+- `Alt`: 通常の Alt キー。Alt 単独ではワークスペースを切替・移動しません。
 - `code:10..19`: 数字キー列（多くの配列で `1..0`）
 
-かなキーを単独で200 ms未満で離すと Enter になります。かなキーを押しながら別のキーを押すと、タップ判定の200 msを待たず即座に Hyper が有効になります。単独で長押しして離しても Enter は出ません。Caps は Hyprland の `ctrl:nocaps` オプションで引き続き Ctrl にします。
+右 Alt は直接 Hyper になります。かなキーを単独で200 ms未満で離すと Enter、かなキーを押しながら別のキーを押すとタップ判定を待たず即座に Hyper になります。かなキーを単独で長押しして離しても Enter は出ません。Caps は Hyprland の `ctrl:nocaps` オプションで引き続き Ctrl にします。
 
 変換キーはタップで Backspace、ホールドで Shift。無変換キーはタップで元の無変換、ホールドで Shift になります。どちらもタップ判定は200 ms未満、他キーとの併用は即座に Shift です。単独で長押しして離したときはタップを送りません。両方をホールドした場合、両方を離すまで Shift を維持します。
 
 A は `overloadi(a, overloadt(control, a, 250), 200)` を使用します。直前の文字入力から200 ms未満で押した A は、長押ししても通常の A のままです。それ以外では250 ms未満で離すと A、250 ms以上のホールドで Ctrl になります。`lettermod`/`overloadt2` と異なり、他キーを素早くタップしても Ctrl への切り替えを早めません。間を空けた後の A は離した時点で入力され、長押しリピートより Ctrl が優先されます。入力直後にすぐ Ctrl を使いたい場合は通常の Ctrl／Caps を使ってください。
 
-これらのかな・変換・無変換・A リマップは内蔵キーボード ID `0001:0001:3cf016cc` 限定で、`[ids] *` のフォールバックはありません。roBa／moNa2 はファームウェアの右親指タップ Enter／ホールド Right Command を維持し、ホストの keyd が `rightmeta` を `layer(hyper)` に変換します。左 Super とトラックボールは変更せず、A→Ctrl もこれらの外付けキーボードには適用しません。登録する roBa ID は `k:1d50:615e:c4fd5cd7`／`k:1d50:615e:a41a014e`、moNa2 ID は `k:1d50:615e:90998e90`／`k:1d50:615e:534ac1e7` です。別のファームウェアやデバイス名では `keyd monitor` で識別してからバンドル側の ID を調整してください。roBa の MAC レイヤーの有無にかかわらず適用され、ファームウェアは書き換えません。
+これらの右 Alt・かな・変換・無変換・A リマップは内蔵キーボード ID `0001:0001:09b4e68d` 限定で、`[ids] *` のフォールバックはありません。roBa／moNa2 はファームウェアの右親指タップ Enter／ホールド Right Command を維持し、ホストの keyd が `rightmeta` を `layer(hyper)` に変換します。左 Super とトラックボールは変更せず、内蔵用の右 Alt・A→Ctrl もこれらの外付けキーボードには適用しません。登録する roBa ID は `k:1d50:615e:c4fd5cd7`／`k:1d50:615e:a41a014e`、moNa2 ID は `k:1d50:615e:90998e90`／`k:1d50:615e:534ac1e7` です。別のファームウェアやデバイス名では `keyd monitor` で識別してからバンドル側の ID を調整してください。roBa の MAC レイヤーの有無にかかわらず適用され、ファームウェアは書き換えません。
 
 keyd は必須です。`apply.sh` は既存の `setup-keyd.sh` を使い、`etc/keyd/kana-hyper.conf`・`etc/keyd/roba-hyper.conf`・共通の `etc/keyd/hyper` を `/etc/keyd/` に一括導入してから Hyprland の既定設定を変更します。セットアップ1回につき対話端末の sudo 昇格を1回使用し、`--skip-packages` 使用時は keyd の事前インストールが必要です。`apply.sh --check`・`apply.sh --dry-run`・`setup-keyd.sh --dry-run` は認証もホストの変更も行いません。keyd 設定だけの適用には `bash ./setup-keyd.sh` を使い、リポジトリへの登録だけでは実機を変更しません。管理対象ファイルはバックアップ後に置換するため、適用前に実機との差分を確認してください。詳細は [README](README.ja.md#適用) を参照してください。
 
@@ -92,10 +92,10 @@ main monitor の切替は `Super+Ctrl+M` です。
 
 ### ウィンドウを移動
 
-内蔵かなキーまたは roBa／moNa2 の Hyper と追加の Shift を押しながら、切替と同じ英字・セミコロン・数字列のキーを使います:
+Hyper と追加の Shift を押しながら、切替と同じ英字・セミコロン・数字列のキーを使います:
 
-- Hyper+Shift+キーで、アクティブウィンドウをそのワークスペースへ移動します（フォーカスも移動）。左右の Shift、Shift に割り当てられた変換・無変換のホールドが使え、押す順番はどちらでも構いません。keyd の共通 `[hyper+shift]` が追加の Shift と Hyper 内部の Shift を区別し、既存の Alt+Shift 移動操作へ変換します。通常の Alt+Shift も使えます。この区別には内蔵用・roBa／moNa2 用の設定が共有する Hyper レイヤーに入る必要があり、キーボードが4修飾キーを送るだけでは区別できません。
-- 旧 Alt 単独のワークスペース切替バインドは明示的に解除します。
+- Hyper+Shift+キーは `Super+Ctrl+Alt+Shift` を出力し、アクティブウィンドウを対象ワークスペースへ移動してフォーカスも追従します。左右の物理 Shift、または Shift に割り当てられた変換・無変換のホールドが使え、押す順番はどちらでも構いません。
+- 旧 Alt 単独のワークスペース切替と Alt+Shift のウィンドウ移動は明示的に解除します。
 
 ## 復元した顔認証・CPU周波数操作
 
@@ -125,12 +125,12 @@ main monitor の切替は `Super+Ctrl+M` です。
 | `Super+Ctrl+M` | main monitor 切替 + ワークスペース再配置 |
 | `Super+Ctrl+P` | 内蔵ディスプレイの ON/OFF（外部無しで消えない安全設計） |
 | `Super+Ctrl+O` | ふた閉じサスペンドの ON/OFF（systemd user service） |
-| `Super+Ctrl+Alt+O` | 自動回転の ON/OFF（次回ログインにも保存） |
+| `Hyper+\`（`Super+Ctrl+Alt+\`） | 自動回転の ON/OFF（次回ログインにも保存） |
 
 ## 設定の場所
 
 - キーバインドは `~/.config/hypr/hey-omarchy-bindings.lua`、入力・透明度は `~/.config/hypr/hey-omarchy.lua` にあります。
-- バンドルの `etc/keyd/kana-hyper.conf` で内蔵限定のかな・変換・無変換・A のタップ／ホールド、`etc/keyd/roba-hyper.conf` で完全一致 ID の roBa／moNa2 右親指ホールド、`etc/keyd/hyper` で共通の Hyper／Hyper+Shift を設定します。両 `.conf` は `include hyper` を使い、`setup-keyd.sh` が3ファイルを `/etc/keyd/` に導入します。Hyprland の `kb_file` は空で、旧かな XKB ファイルは使用しません。
+- バンドルの `etc/keyd/kana-hyper.conf` で内蔵限定の右 Alt Hyper と、かな・変換・無変換・A の設定、`etc/keyd/roba-hyper.conf` で完全一致 ID の roBa／moNa2 右親指ホールド、`etc/keyd/hyper` で共通の3修飾キー Hyper を設定します。両 `.conf` は `include hyper` を使い、`setup-keyd.sh` が3ファイルを `/etc/keyd/` に導入します。Hyprland の `kb_file` は空で、旧かな XKB ファイルは使用しません。
 - ワークスペースの "main/park" ルーティングは `~/.local/bin/hypr-ws` と `~/.local/bin/hypr-main-monitor-toggle` で実装されています。
 
 ## 標準から上書きするキー

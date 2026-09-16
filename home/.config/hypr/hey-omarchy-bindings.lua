@@ -27,9 +27,11 @@ bind("SUPER + SHIFT + P", "Google Photos", { webapp = "https://photos.google.com
 bind("SUPER + SHIFT + X", "X", { webapp = "https://x.com/" })
 bind("SUPER + SHIFT + ALT + X", "X Post", { webapp = "https://x.com/compose/post" })
 
--- Kana holds Ctrl+Alt+Shift+Super via keyd. Window moves retain Alt+Shift.
+-- Right Alt, Kana, and supported keyboard thumb keys provide Ctrl+Alt+Super.
+-- Add either physical or remapped Shift to move windows.
 -- H/J/K/L remain free for tmux.
-local hyper = "SUPER + CTRL + ALT + SHIFT"
+local hyper = "SUPER + CTRL + ALT"
+local hyper_shift = hyper .. " + SHIFT"
 local workspace_keys = {
   "Q", "W", "E", "R", "T", "A", "S", "D", "F", "G",
   "Z", "X", "C", "V", "B", "Y", "U", "I", "O", "P",
@@ -37,11 +39,11 @@ local workspace_keys = {
 for workspace, key in ipairs(workspace_keys) do
   hl.unbind("ALT + " .. key)
   bind(hyper .. " + " .. key, "Switch to workspace " .. workspace, "~/.local/bin/hypr-ws main goto " .. workspace)
-  bind("ALT + SHIFT + " .. key, "Move window to workspace " .. workspace, "~/.local/bin/hypr-ws main move " .. workspace)
+  bind(hyper_shift .. " + " .. key, "Move window to workspace " .. workspace, "~/.local/bin/hypr-ws main move " .. workspace)
 end
 hl.unbind("ALT + semicolon")
 bind(hyper .. " + semicolon", "Switch to workspace 25", "~/.local/bin/hypr-ws main goto 25")
-bind("ALT + SHIFT + semicolon", "Move window to workspace 25", "~/.local/bin/hypr-ws main move 25")
+bind(hyper_shift .. " + semicolon", "Move window to workspace 25", "~/.local/bin/hypr-ws main move 25")
 for _, key in ipairs({ "H", "J", "K", "L" }) do
   hl.unbind("ALT + " .. key)
   hl.unbind("ALT + SHIFT + " .. key)
@@ -57,7 +59,7 @@ for index = 1, 10 do
   hl.unbind("SUPER + " .. key)
   hl.unbind("ALT + " .. key)
   bind(hyper .. " + " .. key, "Parking workspace (" .. parked .. "/" .. fallback .. ")", "~/.local/bin/hypr-ws park goto " .. target)
-  bind("ALT + SHIFT + " .. key, "Park window (" .. parked .. "/" .. fallback .. ")", "~/.local/bin/hypr-ws park move " .. target)
+  bind(hyper_shift .. " + " .. key, "Park window (" .. parked .. "/" .. fallback .. ")", "~/.local/bin/hypr-ws park move " .. target)
 end
 
 -- Super+J split moves to U; Super+K keybindings moves to I. Super+L's
@@ -92,4 +94,4 @@ bind("SUPER + CTRL + J", "Toggle Fcitx EN group", "~/.local/bin/fcitx-en-toggle 
 bind("SUPER + CTRL + M", "Toggle main monitor + move workspaces", "~/.local/bin/hypr-main-monitor-toggle")
 bind("SUPER + CTRL + P", "Toggle internal display", "~/.local/bin/hypr-internal-display-toggle")
 bind("SUPER + CTRL + O", "Toggle lid-close suspend", "~/.local/bin/hypr-lid-suspend-toggle")
-bind("SUPER + CTRL + ALT + O", "Toggle automatic screen rotation", "~/.local/bin/hypr-auto-rotate toggle")
+bind("SUPER + CTRL + ALT + backslash", "Toggle automatic screen rotation", "~/.local/bin/hypr-auto-rotate toggle")

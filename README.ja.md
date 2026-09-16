@@ -8,9 +8,9 @@ Omarchy 管理下のソースは変更しません。`apply.sh` は変更前の�
 
 ## 引き継ぐ機能
 
-- Hyper でメインモニターのワークスペース 1〜20・25、別画面への parking 99〜90、1画面時の 11〜20 フォールバックを切り替えます。かな／roBa／moNa2 共通の Hyper+Shift と同じキーでウィンドウを移動でき、従来の Alt+Shift も使えます。
-- かなキーを単独で200 ms未満で離すと Enter、押しながら別のキーを押すと Hyper（`Super+Ctrl+Alt+Shift`）になります。同時押しは200 ms待たず即座に有効になり、単独で長押しして離しても Enter は出ません。通常の Alt ではワークスペースを切り替えません。
-- roBa／moNa2 の右親指はファームウェアのタップ Enter／ホールド Right Command を維持します。このホストの keyd がホールドを共通 Hyper レイヤーに変換し、左 Super とトラックボールは変更しません。かな・変換・無変換・A のリマップは登録済み内蔵キーボード限定で、これらの外付けキーボードには適用しません。
+- Hyper（`Super+Ctrl+Alt`）でメインモニターのワークスペース 1〜20・25、別画面への parking 99〜90、1画面時の 11〜20 フォールバックを切り替えます。Hyper+Shift と同じキーでウィンドウを移動します。
+- 登録済み内蔵キーボードでは右 Alt がそのまま Hyper になります。かなキーを単独で200 ms未満で離すと Enter、ホールドでも Hyper になります。同時押しは200 ms待たず即座に有効になり、単独で長押しして離しても Enter は出ません。通常の Alt ではワークスペースを切替・移動しません。
+- roBa／moNa2 の右親指はファームウェアのタップ Enter／ホールド Right Command を維持します。このホストの keyd がホールドを共通 Hyper レイヤーに変換し、左 Super とトラックボールは変更しません。右 Alt・かな・変換・無変換・A のリマップは登録済み内蔵キーボード限定で、これらの外付けキーボードには適用しません。
 - 変換キーはタップで Backspace、ホールドで Shift。無変換キーはタップ時の無変換を残し、ホールドで Shift にします。どちらもタップ判定は200 ms未満、他キーとの併用では即座に Shift となり、単独の長押し後はタップを送りません。
 - A はタップで通常入力、250 msホールドで Ctrl。ただし直前の文字入力から200 ms未満なら通常の A を優先します。他キーの素早いタップでは Ctrl に切り替えません。即座の Ctrl 操作より誤爆防止を優先し、間を空けた後の A はキーを離した時点で入力されます。
 - tmux と競合する Alt+H/J/K/L は Alt+Shift 併用も含めて割り当てなし。
@@ -29,9 +29,9 @@ Omarchy 管理下のソースは変更しません。`apply.sh` は変更前の�
 |---|---|
 | `~/.config/hypr/hey-omarchy.lua` | 入力、透明度・ウィンドウルール、ハードウェア条件 |
 | `~/.config/hypr/hey-omarchy-bindings.lua` | キーバインド。標準の競合キーは明示的に解除 |
-| `/etc/keyd/kana-hyper.conf` | 内蔵キーボード限定のかな・変換・無変換・A のタップ／ホールド設定。`hyper` を include |
+| `/etc/keyd/kana-hyper.conf` | 内蔵キーボード限定の右 Alt Hyper と、かな・変換・無変換・A のタップ／ホールド設定。`hyper` を include |
 | `/etc/keyd/roba-hyper.conf` | roBa／moNa2 キーボードの完全一致 ID と `rightmeta = layer(hyper)`。`hyper` を include |
-| `/etc/keyd/hyper` | ワークスペース切替とウィンドウ移動に使う共通の `[hyper:C-A-S-M]`・`[hyper+shift]` レイヤー |
+| `/etc/keyd/hyper` | 共通の `[hyper:C-A-M]` レイヤー。追加の Shift でウィンドウ移動 |
 | `~/.config/hypr/hey-omarchy-options.lua` | インストーラーが生成する画面/NVIDIA オプション |
 | `~/.config/omarchy/shell.json` | 既存バーに独自ウィジェットを追加、アイドル設定 |
 | `~/.config/omarchy/plugins/hey-omarchy/` | 共有ステータスサービスとバー部品 |
@@ -58,9 +58,9 @@ bash ./apply.sh --skip-packages
 
 keyd は必須です。keyd・入力メソッド・DDC の依存パッケージも必要なら `--skip-packages` を外します。`--skip-packages` 使用時は keyd を事前にインストールしてください。`apply.sh` は既存の `setup-keyd.sh` を呼び、`etc/keyd/` の3ファイルを `/etc/keyd/` に一括導入します。セットアップ1回につき対話端末の通常の sudo 昇格を1回使用し、keyd を有効化・起動します。すでに稼働中なら設定を再読み込みします。この処理が成功するまでユーザーの Hyprland 既定設定は変更しません。`--check` と `--dry-run` は認証もホストの変更も行わず、サービスの起動・再読み込みもしません。
 
-`etc/keyd/kana-hyper.conf` は内蔵キーボード ID `0001:0001:3cf016cc` のみを対象に、`katakanahiragana = overload(hyper, enter)` と `[global] overload_tap_timeout = 200` を使用します。ワイルドカードのフォールバックはありません。`etc/keyd/roba-hyper.conf` は roBa の `k:1d50:615e:c4fd5cd7`／`k:1d50:615e:a41a014e` と、moNa2 の `k:1d50:615e:90998e90`／`k:1d50:615e:534ac1e7` を登録します。これらの外付けキーボードには内蔵用の A→Ctrl リマップを適用しません。別のファームウェアやデバイス名では ID が異なるため、`keyd monitor` で識別してからバンドル側の ID を調整してください。
+`etc/keyd/kana-hyper.conf` は内蔵キーボード ID `0001:0001:09b4e68d` のみを対象に、`rightalt = layer(hyper)`、`katakanahiragana = overload(hyper, enter)`、`[global] overload_tap_timeout = 200` を使用します。ワイルドカードのフォールバックはありません。`etc/keyd/roba-hyper.conf` は roBa の `k:1d50:615e:c4fd5cd7`／`k:1d50:615e:a41a014e` と、moNa2 の `k:1d50:615e:90998e90`／`k:1d50:615e:534ac1e7` を登録します。これらの外付けキーボードには内蔵用の右 Alt・A→Ctrl リマップを適用しません。別のファームウェアやデバイス名では ID が異なるため、`keyd monitor` で識別してからバンドル側の ID を調整してください。
 
-両設定は `include hyper` で `etc/keyd/hyper` を共有し、Hyper+Shift によるウィンドウ移動にも対応します。roBa／moNa2 のファームウェアは右親指のタップで Enter、ホールドで Right Command（`RIGHT_WIN`、keyd では `rightmeta`）を送ります。ホスト側ではそのホールドだけを Hyper に変換し、左 Super とトラックボール入力は変更しません。roBa の MAC レイヤーの有無にかかわらず同じ `RIGHT_WIN` が出るため、どちらでも適用されます。別のマシンやファームウェアは変更しません。リポジトリへの登録だけでは実機に適用されません。
+両設定は `include hyper` で `etc/keyd/hyper` を共有します。基本レイヤーは `Ctrl+Alt+Super` を出力し、物理またはリマップ済み Shift を追加すると `Ctrl+Alt+Shift+Super` になり、Hyprland がワークスペースへのウィンドウ移動として直接処理します。roBa／moNa2 のファームウェアは右親指のタップで Enter、ホールドで Right Command（`RIGHT_WIN`、keyd では `rightmeta`）を送ります。ホスト側ではそのホールドだけを Hyper に変換し、左 Super とトラックボール入力は変更しません。roBa の MAC レイヤーの有無にかかわらず同じ `RIGHT_WIN` が出るため、どちらでも適用されます。別のマシンやファームウェアは変更しません。リポジトリへの登録だけでは実機に適用されません。
 
 keyd の導入済み環境で、keyd 部分だけを確認・再現する場合:
 
@@ -110,7 +110,7 @@ bash tests/run.sh
 
 `home/` 以下を変更して再適用するか、ユーザー側のインストール済みファイルを編集します。`home/.config/omarchy/hey-omarchy.json` はマージ用の断片であり、`shell.json` 全体の置き換えではありません。
 
-`Super+Ctrl+Y` は Quattro のバー表示切替、`Super+Ctrl+Alt+O` は自動回転の切替です。標準から変更されるキーはショートカット一覧を参照してください。
+`Super+Ctrl+Y` は Quattro のバー表示切替、`Hyper+\` はワークスペース19の `Hyper+O` と競合しない自動回転の切替です。標準から変更されるキーはショートカット一覧を参照してください。
 
 ## ロールバック
 

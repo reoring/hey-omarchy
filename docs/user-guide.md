@@ -8,17 +8,17 @@ Installed to: `~/.config/hypr/hey-omarchy-bindings.lua` (via `apply.sh`)
 ## Modifier keys
 
 - `Super`: the Windows/Command key
-- `Hyper`: `Super+Ctrl+Alt+Shift`, produced through keyd's shared layer by holding built-in kana or the registered roBa/moNa2 right thumb.
-- `Alt`: either ordinary Alt key; used with Shift for window moves, not workspace switching.
+- `Hyper`: `Super+Ctrl+Alt`. On the registered built-in keyboard, Right Alt enters Hyper directly; holding kana or the registered roBa/moNa2 right thumb also produces it.
+- `Alt`: an ordinary Alt key. Alt alone does not switch or move workspaces.
 - `code:10..19`: the number row (`1..0` on most layouts)
 
-Tap kana alone and release it in less than 200 ms to send Enter. Hold kana while pressing another key to use Hyper immediately, without waiting for the tap timeout; releasing a standalone long hold sends no Enter. Caps remains Ctrl through Hyprland's `ctrl:nocaps` option.
+Right Alt is a direct Hyper key. Tap kana alone and release it in less than 200 ms to send Enter, or hold kana while pressing another key to use Hyper immediately without waiting for the tap timeout. Releasing a standalone long kana hold sends no Enter. Caps remains Ctrl through Hyprland's `ctrl:nocaps` option.
 
 Henkan taps Backspace and holds Shift; Muhenkan taps the original Muhenkan key and holds Shift. Both share the 200 ms tap limit and immediate chord behavior. Releasing a standalone long hold sends no tap. Holding both conversion keys keeps Shift active until both are released.
 
 A uses `overloadi(a, overloadt(control, a, 250), 200)`: recent typing within 200 ms keeps A literal even if held. Otherwise, release before 250 ms for A or hold at least 250 ms for Ctrl. Quick intervening key taps do not force Ctrl, unlike `lettermod`/`overloadt2`. An A after a pause is emitted on release, so this intentionally trades immediate Ctrl chords and idle A auto-repeat for safer typing. To use Ctrl immediately after typing, use the ordinary Ctrl/Caps key.
 
-These kana/conversion/A remaps apply only to the built-in keyboard ID `0001:0001:3cf016cc`; there is no `[ids] *` fallback. roBa/moNa2 instead use their firmware Enter tap / Right Command hold, with host keyd mapping `rightmeta` to `layer(hyper)`. Left Super and trackball input are unchanged, and these external keyboards do not inherit A→Ctrl. The registered roBa IDs are `k:1d50:615e:c4fd5cd7` / `k:1d50:615e:a41a014e`; moNa2 uses `k:1d50:615e:90998e90` / `k:1d50:615e:534ac1e7`. Other firmware/device names may need identification with `keyd monitor` before updating the bundle. The mapping works with or without roBa's MAC layer and does not flash firmware.
+These Right Alt, kana, conversion, and A remaps apply only to the built-in keyboard ID `0001:0001:09b4e68d`; there is no `[ids] *` fallback. roBa/moNa2 instead use their firmware Enter tap / Right Command hold, with host keyd mapping `rightmeta` to `layer(hyper)`. Left Super and trackball input are unchanged, and these external keyboards do not inherit the built-in Right Alt or A→Ctrl mappings. The registered roBa IDs are `k:1d50:615e:c4fd5cd7` / `k:1d50:615e:a41a014e`; moNa2 uses `k:1d50:615e:90998e90` / `k:1d50:615e:534ac1e7`. Other firmware/device names may need identification with `keyd monitor` before updating the bundle. The mapping works with or without roBa's MAC layer and does not flash firmware.
 
 keyd is required. `apply.sh` uses the existing `setup-keyd.sh` to install `etc/keyd/kana-hyper.conf`, `etc/keyd/roba-hyper.conf`, and the shared `etc/keyd/hyper` into `/etc/keyd/` as one transaction before changing Hyprland defaults, with one interactive sudo escalation per setup invocation. `--skip-packages` requires keyd to be preinstalled. `apply.sh --check`, `apply.sh --dry-run`, and `setup-keyd.sh --dry-run` do not authenticate or change the host. To remake only this keyd setup, run `bash ./setup-keyd.sh`; repository changes alone do not deploy it. Review local file differences before applying: managed files are replaced after backup, not merged. See the [README](../README.md#apply) for details.
 
@@ -92,10 +92,10 @@ You can also run `hypr-monitor-position menu` or `hypr-monitor-position left|rig
 
 ### Move active window
 
-Hold built-in kana or roBa/moNa2 Hyper and an additional Shift, then press the same letter, semicolon, or number-row key:
+Hold Hyper and an additional Shift, then press the same letter, semicolon, or number-row key:
 
-- Hyper+Shift+key moves the active window to that workspace (and focuses it). Either physical Shift or a held Henkan/Muhenkan mapped to Shift works, in either press order. keyd's shared `[hyper+shift]` layer distinguishes the additional Shift from Hyper's emulated Shift and emits the existing Alt+Shift move shortcut. Ordinary Alt+Shift still works. This distinction requires entering keyd's shared Hyper layer, as the built-in and roBa/moNa2 configurations do; a keyboard emitting only four modifiers does not provide it.
-- The old Alt-only workspace-switching bindings are explicitly removed.
+- Hyper+Shift+key emits `Super+Ctrl+Alt+Shift` and moves the active window to that workspace while following it. Either physical Shift or a held Henkan/Muhenkan mapped to Shift works, in either press order.
+- The old Alt-only workspace switching and Alt+Shift window-moving bindings are explicitly removed.
 
 ## Restored face unlock and CPU frequency control
 
@@ -125,7 +125,7 @@ Hold built-in kana or roBa/moNa2 Hyper and an additional Shift, then press the s
 | `Super+Ctrl+M` | Toggle main monitor + consolidate workspaces |
 | `Super+Ctrl+P` | Toggle internal display (safe: won't disable your only monitor) |
 | `Super+Ctrl+O` | Toggle lid-close suspend (systemd user service) |
-| `Super+Ctrl+Alt+O` | Toggle automatic rotation, persisted for next login |
+| `Hyper+\` (`Super+Ctrl+Alt+\`) | Toggle automatic rotation, persisted for next login |
 
 Notes:
 
@@ -134,7 +134,7 @@ Notes:
 ## Where to change things
 
 - Keybindings live in `~/.config/hypr/hey-omarchy-bindings.lua`; input and opacity rules live in `~/.config/hypr/hey-omarchy.lua`.
-- Edit `etc/keyd/kana-hyper.conf` for built-in-only kana/conversion/A tap/hold mappings, `etc/keyd/roba-hyper.conf` for exact-ID roBa/moNa2 right-thumb holds, and `etc/keyd/hyper` for shared Hyper/Hyper+Shift behavior. Both `.conf` files use `include hyper`; `setup-keyd.sh` installs all three into `/etc/keyd/`. Hyprland's `kb_file` is empty; the old kana XKB file is retired.
+- Edit `etc/keyd/kana-hyper.conf` for built-in-only Right Alt Hyper and kana/conversion/A mappings, `etc/keyd/roba-hyper.conf` for exact-ID roBa/moNa2 right-thumb holds, and `etc/keyd/hyper` for the shared three-modifier Hyper layer. Both `.conf` files use `include hyper`; `setup-keyd.sh` installs all three into `/etc/keyd/`. Hyprland's `kb_file` is empty; the old kana XKB file is retired.
 - Workspace routing logic is implemented by `~/.local/bin/hypr-ws` and `~/.local/bin/hypr-main-monitor-toggle`.
 
 ## Stock shortcuts overridden

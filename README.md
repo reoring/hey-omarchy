@@ -8,9 +8,9 @@ Docs: [Japanese README](README.ja.md), [shortcut guide](docs/user-guide.md), [Ja
 
 ## What is preserved
 
-- Hyper switches main-monitor workspaces 1–20 and 25, with parking workspaces 99–90 on the other display and 11–20 single-monitor fallback. Shared kana/roBa/moNa2 Hyper+Shift moves windows using the same keys; ordinary Alt+Shift also works. Alt+H/J/K/L and Alt+Shift+H/J/K/L remain free for tmux.
-- Kana taps Enter when released within 200 ms without a chord; holding it provides Hyper (`Super+Ctrl+Alt+Shift`). Chords activate immediately, with no 200 ms wait; releasing a standalone long hold sends no Enter. Ordinary Alt no longer switches workspaces.
-- roBa and moNa2 retain firmware Enter on right-thumb tap / Right Command on hold. On this host, keyd maps that hold to the shared Hyper layer; left Super and trackball input are unchanged. Kana/conversion/A remaps apply only to the registered built-in keyboard, not these external keyboards.
+- Hyper (`Super+Ctrl+Alt`) switches main-monitor workspaces 1–20 and 25, with parking workspaces 99–90 on the other display and 11–20 single-monitor fallback. Hyper+Shift moves windows using the same keys. Alt+H/J/K/L and Alt+Shift+H/J/K/L remain free for tmux.
+- On the registered built-in keyboard, Right Alt enters Hyper directly. Kana taps Enter when released within 200 ms without a chord; holding it also provides Hyper. Chords activate immediately, with no 200 ms wait; releasing a standalone long hold sends no Enter. Ordinary Alt no longer switches or moves workspaces.
+- roBa and moNa2 retain firmware Enter on right-thumb tap / Right Command on hold. On this host, keyd maps that hold to the shared Hyper layer; left Super and trackball input are unchanged. Right Alt and kana/conversion/A remaps apply only to the registered built-in keyboard, not these external keyboards.
 - Henkan taps Backspace and holds Shift. Muhenkan retains its original tap and holds Shift. Both use the same 200 ms tap limit and activate Shift immediately for chords; standalone long holds send no tap.
 - A taps normally and holds Ctrl after 250 ms, but stays a literal A when pressed within 200 ms of recent typing. Fast overlapping taps do not force Ctrl. This favors typing safety over immediate Ctrl chords; an A after a pause appears on release.
 - Caps→Ctrl remains in Hyprland, with key repeat 40/600, natural touchpad scrolling at 0.4, and touchpad use while typing.
@@ -28,9 +28,9 @@ The legacy `waybar-*` executable names remain JSON status producers used by Quic
 |---|---|
 | `~/.config/hypr/hey-omarchy.lua` | Input, opacity/window rules, optional hardware environment |
 | `~/.config/hypr/hey-omarchy-bindings.lua` | Personal keybindings; explicit unbinds override stock shortcuts |
-| `/etc/keyd/kana-hyper.conf` | Built-in keyboard only: kana, Henkan, Muhenkan, and A tap/hold mappings; includes `hyper` |
+| `/etc/keyd/kana-hyper.conf` | Built-in keyboard only: Right Alt Hyper plus kana, Henkan, Muhenkan, and A tap/hold mappings; includes `hyper` |
 | `/etc/keyd/roba-hyper.conf` | Exact roBa/moNa2 keyboard IDs; maps `rightmeta = layer(hyper)` and includes `hyper` |
-| `/etc/keyd/hyper` | Shared `[hyper:C-A-S-M]` and `[hyper+shift]` layers for workspace switching and window moves |
+| `/etc/keyd/hyper` | Shared `[hyper:C-A-M]` layer; an additional Shift forms the workspace window-move chord |
 | `~/.config/hypr/hey-omarchy-options.lua` | Generated monitor/NVIDIA install options |
 | `~/.config/omarchy/shell.json` | Existing bar layout plus custom entries and idle settings |
 | `~/.config/omarchy/plugins/hey-omarchy/` | Shared status service and native widgets |
@@ -57,9 +57,9 @@ bash ./apply.sh --skip-packages
 
 keyd is required. Omit `--skip-packages` when keyd or the input-method/DDC dependencies still need installing; `--skip-packages` requires keyd to be preinstalled. `apply.sh` calls the existing `setup-keyd.sh` to install all three files from `etc/keyd/` into `/etc/keyd/` as one transaction, using one normal interactive sudo escalation per setup invocation. It enables/starts keyd, reloading its configuration when already active. This setup must succeed before user Hyprland defaults are changed. `--check` and `--dry-run` do not authenticate, change the host, or start/reload services.
 
-`etc/keyd/kana-hyper.conf` matches only the built-in keyboard ID `0001:0001:3cf016cc`, with `katakanahiragana = overload(hyper, enter)` and `[global] overload_tap_timeout = 200`; there is no wildcard fallback. `etc/keyd/roba-hyper.conf` registers roBa IDs `k:1d50:615e:c4fd5cd7` / `k:1d50:615e:a41a014e` and moNa2 IDs `k:1d50:615e:90998e90` / `k:1d50:615e:534ac1e7`. These external keyboards do not receive the built-in keyboard's A→Ctrl remap. Other firmware/device names may produce different IDs: identify the keyboard with `keyd monitor` before adapting the bundle.
+`etc/keyd/kana-hyper.conf` matches only the built-in keyboard ID `0001:0001:09b4e68d`, with `rightalt = layer(hyper)`, `katakanahiragana = overload(hyper, enter)`, and `[global] overload_tap_timeout = 200`; there is no wildcard fallback. `etc/keyd/roba-hyper.conf` registers roBa IDs `k:1d50:615e:c4fd5cd7` / `k:1d50:615e:a41a014e` and moNa2 IDs `k:1d50:615e:90998e90` / `k:1d50:615e:534ac1e7`. These external keyboards do not receive the built-in keyboard's Right Alt or A→Ctrl remaps. Other firmware/device names may produce different IDs: identify the keyboard with `keyd monitor` before adapting the bundle.
 
-Both configurations use `include hyper` to share `etc/keyd/hyper`, including Hyper+Shift window moves. roBa/moNa2 firmware emits Enter on right-thumb tap and Right Command (`RIGHT_WIN`, seen by keyd as `rightmeta`) on hold. The host maps only that hold to Hyper; left Super and trackball input are unchanged. The mapping applies with or without roBa's MAC layer because both emit the same `RIGHT_WIN`. It does not change another machine or flash firmware. Registration in this repository alone does not deploy it.
+Both configurations use `include hyper` to share `etc/keyd/hyper`. The base layer emits `Ctrl+Alt+Super`; adding physical or remapped Shift emits `Ctrl+Alt+Shift+Super`, which Hyprland binds directly to workspace window moves. roBa/moNa2 firmware emits Enter on right-thumb tap and Right Command (`RIGHT_WIN`, seen by keyd as `rightmeta`) on hold. The host maps only that hold to Hyper; left Super and trackball input are unchanged. The mapping applies with or without roBa's MAC layer because both emit the same `RIGHT_WIN`. It does not change another machine or flash firmware. Registration in this repository alone does not deploy it.
 
 To preview or remake only the keyd portion with keyd already installed:
 
@@ -109,7 +109,7 @@ bash tests/run.sh
 
 Edit the bundle's `home/` files and reapply, or edit installed user copies directly. `home/.config/omarchy/hey-omarchy.json` is an installer fragment, not a replacement shell configuration. `barRemovals` remove matching widgets, `barMoves` relocate existing entries with their settings intact, and `barAdditions` insert missing entries; `barSettings` overrides bar-level options. Unrelated settings remain intact.
 
-Quattro's stock Super+J/K/L and several Ctrl shortcuts are intentionally overridden; see the shortcut guide. `Super+Ctrl+Y` now toggles the native bar, and `Super+Ctrl+Alt+O` toggles persistent automatic rotation.
+Quattro's stock Super+J/K/L and several Ctrl shortcuts are intentionally overridden; see the shortcut guide. `Super+Ctrl+Y` now toggles the native bar, and `Hyper+\` toggles persistent automatic rotation without occupying workspace 19's `Hyper+O`.
 
 ## Rollback
 
