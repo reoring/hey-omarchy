@@ -730,14 +730,14 @@ setup_cskk_passthrough_ascii() {
 
 # cskk-git (AUR) installs libcskk under /usr/lib/cskk/, which is not on the
 # default dynamic linker search path. Without this, fcitx5-cskk.so fails to
-# dlopen libcskk.so.3 and CSKK silently disappears from fcitx5's addon list.
+# dlopen libcskk.so.N and CSKK silently disappears from fcitx5's addon list.
 # Register the directory system-wide so the fix is independent of how fcitx5
 # is launched (systemd user service, Hyprland exec-once, manual, etc.).
 ensure_libcskk_ldconfig() {
   local conf="/etc/ld.so.conf.d/cskk.conf"
   local line="/usr/lib/cskk"
 
-  if [[ ! -e /usr/lib/cskk/libcskk.so.3 ]]; then
+  if ! compgen -G '/usr/lib/cskk/libcskk.so.*' >/dev/null; then
     log "skip: libcskk not under /usr/lib/cskk; ld.so.conf.d fix not needed"
     return 0
   fi
@@ -752,7 +752,7 @@ ensure_libcskk_ldconfig() {
     return 0
   fi
 
-  log "Writing $conf (may prompt for sudo) so fcitx5-cskk can find libcskk.so.3"
+  log "Writing $conf (may prompt for sudo) so fcitx5-cskk can find libcskk"
   if (( DRY_RUN )); then
     log "[dry-run] echo '$line' | sudo tee $conf"
     log "[dry-run] sudo ldconfig"
@@ -890,7 +890,7 @@ done
 run systemctl --user daemon-reload
 
 # Fcitx5: cskk addon depends on libcskk (cskk-git installs it under /usr/lib/cskk).
-# Make libcskk.so.3 discoverable via ld.so.conf.d so fcitx5-cskk loads regardless
+# Make libcskk discoverable via ld.so.conf.d so fcitx5-cskk loads regardless
 # of how fcitx5 is launched.
 ensure_libcskk_ldconfig
 

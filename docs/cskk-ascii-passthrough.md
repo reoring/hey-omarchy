@@ -69,7 +69,7 @@ systemctl --user restart app-org.fcitx.Fcitx5@autostart.service
 
 On Arch, `cskk-git` installs `libcskk.so` under `/usr/lib/cskk/`, which is not
 on the default dynamic linker search path. Without a fix, `fcitx5-cskk.so`
-fails to dlopen `libcskk.so.3` and CSKK silently disappears from fcitx5's addon
+fails to dlopen `libcskk.so.N` (`.so.4` as of cskk 4.0) and CSKK silently disappears from fcitx5's addon
 list.
 
 `apply.sh` handles this by registering `/usr/lib/cskk` system-wide via

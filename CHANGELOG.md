@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Register `/usr/lib/cskk` with the dynamic linker for any `libcskk.so.N`; cskk 4.0 ships `libcskk.so.4`, so the previous `.so.3`-only check skipped the fix and CSKK failed to load.
 - Preserve the current right-side ordering on apply: keep the personal-control drawer directly after the system tray and place agents after Bluetooth. The system tray and personal controls remain separate.
 - Move the remaining center indicators, keyboard layout, weather, and update widgets beside the left-aligned clock, leaving the center empty without disabling their features.
 - Group all 13 personal bar controls behind a `⋯` / `‹` visibility toggle; start collapsed without disabling their functions or status polling. Replace legacy per-control entries, hide workspace labels, and move the existing clock beside the left menu while preserving its format.

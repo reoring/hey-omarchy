@@ -97,7 +97,7 @@ path = "passthrough_ascii"
 
 ## `libcskk.so` が見つからない場合（cskk-git）
 
-Arch の `cskk-git` は `libcskk.so` を `/usr/lib/cskk/` に置く。これは動的リンカーのデフォルト検索パスに含まれないため、そのままだと `fcitx5-cskk.so` が `libcskk.so.3` を dlopen できず、CSKK アドオンが fcitx5 のロード一覧から静かに消える。
+Arch の `cskk-git` は `libcskk.so` を `/usr/lib/cskk/` に置く。これは動的リンカーのデフォルト検索パスに含まれないため、そのままだと `fcitx5-cskk.so` が `libcskk.so.N`（cskk 4.0 以降は `.so.4`）を dlopen できず、CSKK アドオンが fcitx5 のロード一覧から静かに消える。
 
 `apply.sh` は `/etc/ld.so.conf.d/cskk.conf` に `/usr/lib/cskk` を登録して `ldconfig` を走らせることで、システム全体で解決する。fcitx5 の起動方法（systemd user service / Hyprland `exec-once` / 手動）に依存しない堅牢な方法。
 
@@ -112,7 +112,7 @@ sudo ldconfig
 
 ```sh
 ldd /usr/lib/fcitx5/fcitx5-cskk.so | rg -i 'libcskk|not found'
-# libcskk.so.3 => /usr/lib/cskk/libcskk.so.3 と出れば OK
+# libcskk.so.4 => /usr/lib/cskk/libcskk.so.4 のように /usr/lib/cskk 配下に解決されれば OK
 ```
 
 ## 反映/再起動
