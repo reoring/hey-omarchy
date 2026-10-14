@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Setup WWAN (Docomo SIM) on ThinkPad X1 13" with Quectel RM5xx (MHI).
+# Setup WWAN (Docomo SIM) on ThinkPad X1 Carbon (MHI/MBIM modems).
+#
+# Supported modems (detected via PCI id):
+# - Quectel RM520N-GL (1eac:*)        X1 Carbon Gen 13: radio may need Quectel MBIM enable
+# - Foxconn T99W696 (17cb:0308)       X1 Carbon Gen 14: radio is FCC-locked; needs the
+#                                     lenovo-wwan-unlock dispatcher (fcc-unlock.d/17cb:0308)
 #
 # This machine commonly runs Wi-Fi/Ethernet with systemd-networkd + iwd.
 # WWAN is easiest to manage via ModemManager + NetworkManager.
@@ -22,6 +27,13 @@ DEFAULT_CON_NAME="docomo"
 DEFAULT_MBIM_TIMEOUT_SECS=12
 DEFAULT_WAIT_SECS=30
 
+FCC_UNLOCK_PKG="lenovo-wwan-unlock"
+FCC_UNLOCK_SERVICE="lenovo-cfgservice.service"
+FCC_UNLOCK_T99W696_SCRIPTS=(
+  /etc/ModemManager/fcc-unlock.d/17cb:0308
+  /usr/lib/ModemManager/fcc-unlock.d/17cb:0308
+)
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -36,6 +48,8 @@ What it does (install):
   - Installs packages:
       linux-firmware-qcom networkmanager modemmanager libmbim libqmi
       mobile-broadband-provider-info
+  - Foxconn T99W696 (X1 Carbon Gen 14): installs lenovo-wwan-unlock from AUR
+    (FCC unlock dispatcher) and enables lenovo-cfgservice.service
   - Configures NetworkManager to manage only WWAN interfaces
   - Configures systemd-networkd to ignore WWAN interfaces
   - Enables and starts: ModemManager.service, NetworkManager.service
@@ -53,7 +67,8 @@ Options:
   --no-connection    Do not create/modify an NM connection profile
   --mbim-timeout N   Timeout seconds for mbimcli calls (default: 12)
   --wait N           Seconds to wait for modem/device to appear (default: 30)
-  --direct-mbim      Force MBIM radio enable via direct device access (stops ModemManager temporarily)
+  --direct-mbim      Quectel only: force MBIM radio enable via direct device access
+                     (stops ModemManager temporarily). Ignored on Foxconn T99W696.
   --no-upgrade       Do not run full system upgrade; use pacman -S --needed
 
 Uninstall options:
@@ -66,6 +81,8 @@ Notes:
       nmcli connection modify docomo gsm.pin 1234
   - If ModemManager logs "software radio switch is OFF", run:
       bash setup-wwan-docomo.sh enable
+    On Foxconn T99W696 that message means the FCC unlock did not run; check
+      journalctl -t DPR_Fcc_unlock_service -b
 EOF
 }
 
@@ -242,7 +259,7 @@ mhi_soc_reset() {
   local reset_path=""
   local p
   shopt -s nullglob
-  for p in /sys/bus/mhi/devices/mhi*/soc_reset; do
+  for p in /sys/bus/mhi/devices/mhi[0-9]/soc_reset /sys/bus/mhi/devices/mhi[0-9][0-9]/soc_reset; do
     reset_path="$p"
     break
   done
@@ -375,13 +392,143 @@ mbim_direct_enable_radio() {
   return 1
 }
 
+detect_modem_family() {
+  # Prints: quectel | foxconn-t99w696 | unknown[:vid:pid]
+  local p vid did
+  shopt -s nullglob
+  for p in /sys/bus/pci/devices/*; do
+    # PCI class 0x0d40 = cellular controller/modem.
+    [[ "$(cat "$p/class" 2>/dev/null)" == 0x0d40* ]] || continue
+    vid="$(cat "$p/vendor" 2>/dev/null)"; vid="${vid#0x}"
+    did="$(cat "$p/device" 2>/dev/null)"; did="${did#0x}"
+    shopt -u nullglob
+    case "$vid:$did" in
+      17cb:0308) echo "foxconn-t99w696" ;;
+      1eac:*) echo "quectel" ;;
+      *) echo "unknown:$vid:$did" ;;
+    esac
+    return 0
+  done
+  shopt -u nullglob
+  echo "unknown"
+}
+
+fcc_unlock_t99w696_installed() {
+  local s
+  for s in "${FCC_UNLOCK_T99W696_SCRIPTS[@]}"; do
+    [[ -x "$s" ]] && return 0
+  done
+  return 1
+}
+
+ensure_fcc_unlock_t99w696() {
+  # Foxconn T99W696 keeps its radio off until ModemManager runs the vendor FCC
+  # unlock dispatcher on every power-up. lenovo-wwan-unlock (AUR) ships it.
+  if ! fcc_unlock_t99w696_installed; then
+    local helper=""
+    if command -v yay >/dev/null 2>&1; then
+      helper="yay"
+    elif command -v paru >/dev/null 2>&1; then
+      helper="paru"
+    fi
+
+    if [[ -z "$helper" || ${EUID:-$(id -u)} -eq 0 ]]; then
+      echo "Error: Foxconn T99W696 needs the FCC unlock dispatcher (${FCC_UNLOCK_T99W696_SCRIPTS[1]})." >&2
+      echo "Install as your normal user: yay -S $FCC_UNLOCK_PKG" >&2
+      return 1
+    fi
+
+    echo "Installing $FCC_UNLOCK_PKG (FCC unlock for Foxconn T99W696) via $helper"
+    "$helper" -S --needed "$FCC_UNLOCK_PKG" || return 1
+    fcc_unlock_t99w696_installed || {
+      echo "Error: $FCC_UNLOCK_PKG installed but no fcc-unlock.d/17cb:0308 dispatcher found" >&2
+      return 1
+    }
+  fi
+
+  $SUDO systemctl enable --now "$FCC_UNLOCK_SERVICE" >/dev/null 2>&1 || true
+  return 0
+}
+
+mm_power_state() {
+  local mid
+  mid="$(first_mm_modem_id || true)"
+  [[ -n "$mid" ]] || return 1
+  $SUDO mmcli -m "$mid" 2>/dev/null | sed -n "s/.*power state: *\([a-z]*\).*/\1/p" | head -n 1
+}
+
+mm_primary_port() {
+  local mid
+  mid="$(first_mm_modem_id || true)"
+  [[ -n "$mid" ]] || return 1
+  $SUDO mmcli -m "$mid" 2>/dev/null | sed -n "s/.*primary port: *\([^ ]*\).*/\1/p" | head -n 1
+}
+
+ensure_radio_on_t99w696() {
+  ensure_fcc_unlock_t99w696 || return 1
+
+  local st port
+  st="$(mm_power_state || true)"
+  port="$(mm_primary_port || true)"
+
+  if [[ -n "$port" && "$port" != *mbim* ]]; then
+    # MBIM channel wedged (typically after resume): MM could not grab wwan0mbim0
+    # and built an AT-only modem, which can never bring a bearer up. Only an
+    # MHI SoC reset recovers it; MM then re-probes and re-runs the FCC unlock.
+    echo "Modem primary port is '$port' (MBIM channel wedged); resetting modem"
+    $SUDO systemctl stop ModemManager.service 2>/dev/null || true
+    $SUDO pkill -x mbim-proxy 2>/dev/null || true
+    mhi_soc_reset || echo "Warning: MHI soc_reset unavailable" >&2
+    wait_for_mbim_device >/dev/null || true
+    sleep 3
+    $SUDO systemctl start ModemManager.service
+  elif [[ "$st" == "on" ]]; then
+    echo "Modem power state: on (FCC unlock already applied)"
+    return 0
+  else
+    # ModemManager runs the dispatcher during modem init; if the modem was probed
+    # before the dispatcher existed, a restart is needed to trigger it.
+    echo "Modem power state: ${st:-unknown}; restarting ModemManager to run FCC unlock"
+    $SUDO systemctl restart ModemManager.service
+  fi
+
+  wait_for_mm_modem || return 1
+  best_effort_modem_enable
+
+  local end=$((SECONDS + wait_secs))
+  while (( SECONDS < end )); do
+    st="$(mm_power_state || true)"
+    if [[ "$st" == "on" ]]; then
+      echo "Modem power state: on"
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "Error: modem power state still '${st:-unknown}' after FCC unlock attempt." >&2
+  echo "Check: journalctl -t DPR_Fcc_unlock_service -b; journalctl -u ModemManager -b | tail -n 60" >&2
+  return 1
+}
+
 ensure_wwan_radio_on() {
-  # Best-effort: unblock rfkill, enable NM WWAN, then force modem radio ON via MBIM.
+  # Best-effort: unblock rfkill, enable NM WWAN, then make sure the modem radio is ON.
   if command -v rfkill >/dev/null 2>&1; then
     $SUDO rfkill unblock wwan 2>/dev/null || true
   fi
   if command -v nmcli >/dev/null 2>&1; then
     $SUDO nmcli radio wwan on 2>/dev/null || true
+  fi
+
+  local family
+  family="$(detect_modem_family)"
+  echo "Detected modem family: $family"
+
+  if [[ "$family" == "foxconn-t99w696" ]]; then
+    if [[ $direct_mbim -eq 1 ]]; then
+      echo "Note: --direct-mbim is a Quectel workaround; ignored on Foxconn T99W696"
+    fi
+    ensure_radio_on_t99w696
+    return $?
   fi
 
   if ! command -v mbimcli >/dev/null 2>&1; then
@@ -632,6 +779,13 @@ ensure_services_running
 
 echo "Enabled: ModemManager.service NetworkManager.service"
 
+if [[ "$(detect_modem_family)" == "foxconn-t99w696" ]]; then
+  echo "Foxconn T99W696 detected: installing FCC unlock"
+  ensure_fcc_unlock_t99w696 || exit 1
+  # ModemManager may have probed the modem before the dispatcher existed.
+  $SUDO systemctl restart ModemManager.service
+fi
+
 if [[ $no_connection -eq 0 ]]; then
   if ! command -v nmcli >/dev/null 2>&1; then
     echo "nmcli not found (NetworkManager not installed correctly?)." >&2
@@ -681,6 +835,7 @@ Quick checks:
 If the modem is not listed by mmcli, reboot once after installing linux-firmware-qcom.
 If ModemManager says "software radio switch is OFF", run:
   bash setup-wwan-docomo.sh enable
+  (Foxconn T99W696: also check journalctl -t DPR_Fcc_unlock_service -b)
 If the SIM needs a PIN, set it then retry:
   nmcli connection modify docomo gsm.pin 1234
   nmcli connection up docomo

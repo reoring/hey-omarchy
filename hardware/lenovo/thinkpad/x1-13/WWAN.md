@@ -1,6 +1,11 @@
-# WWAN (Quectel RM520N-GL / MHI) Notes
+# WWAN (MHI/MBIM) Notes
 
-This machine class: ThinkPad X1 Carbon Gen 13 with internal Quectel RM520N-GL.
+Machine classes covered:
+
+- ThinkPad X1 Carbon Gen 13: Quectel RM520N-GL (PCI `1eac:*`)
+- ThinkPad X1 Carbon Gen 14: Foxconn T99W696 (PCI `17cb:0308`), see the FCC lock section
+
+`setup-wwan-docomo.sh` detects the modem via PCI id and picks the matching radio-enable path.
 
 Hardware/driver stack (observed):
 
@@ -86,6 +91,30 @@ sudo nmcli connection up docomo
 - fallbacks: OFF->ON toggle, MBIMEx open variants, Quectel `--quectel-set-radio-state=on`
 - optional last-resort: MHI `soc_reset`
 
+## X1 Carbon Gen 14 (Foxconn T99W696, PCI 17cb:0308 / subsys 105b:e143): FCC lock
+
+Gen 14 ships a Foxconn T99W696 (SDX61), not the Quectel RM520N-GL. The same
+`Cannot power-up: sotware radio switch is OFF` / `Invalid transition` loop appears,
+but `--direct-mbim` cannot fix it: the Quectel MBIM service is absent and the real
+cause is the FCC lock. The radio stays off until the host sends Foxconn's
+vendor unlock after every modem power-on. ModemManager ships no unlock for this id
+(`fcc-unlock.available.d/105b` only covers SDX55 `e0ab`/`e0c3`).
+
+Fix (observed working, 2026-10-08, modemmanager 1.24.2). `setup-wwan-docomo.sh install`
+and `enable` do this automatically when they detect `17cb:0308`; manual equivalent:
+
+```sh
+yay -S lenovo-wwan-unlock            # installs /usr/lib/ModemManager/fcc-unlock.d/17cb:0308
+sudo systemctl enable --now lenovo-cfgservice.service
+sudo systemctl restart ModemManager
+nmcli connection up docomo
+```
+
+Verify the unlock ran: `journalctl -t DPR_Fcc_unlock_service -b` should show
+`FCC unlock is success`. ModemManager then runs it automatically on boot/resume.
+The unlock is gated on a non-US SIM (docomo passes). Open alternative without
+Lenovo blobs: https://github.com/twh/wwan-unlock (`foxunlock`, FOXAP 0xE4 msg 0x5571).
+
 ## Suspend/resume behavior (with mhi-wwan-sleep.service)
 
 If you installed the suspend workaround (`mhi-wwan-sleep.service`), it will:
@@ -118,8 +147,10 @@ sudo nmcli connection modify docomo connection.autoconnect no
 If it still doesn't come back (e.g. software radio switch flips OFF again), run:
 
 ```sh
-bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh enable --wait 60 --direct-mbim
+bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh enable --wait 60
 ```
+
+(`--direct-mbim` only changes behaviour on Quectel; on T99W696 the script re-runs the FCC unlock.)
 
 ## Connectivity check
 

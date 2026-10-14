@@ -115,10 +115,11 @@ If ModemManager logs say "software radio switch is OFF", run:
 bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh enable
 ```
 
-If it still won't connect, force direct MBIM radio enable:
+If it still won't connect, re-run the radio enable step (Quectel: MBIM radio
+enable; Foxconn T99W696 on Gen 14: FCC unlock via lenovo-wwan-unlock):
 
 ```sh
-bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh enable --wait 60 --direct-mbim
+bash hardware/lenovo/thinkpad/x1-13/setup-wwan-docomo.sh enable --wait 60
 ```
 
 If the modem is not detected after install, reboot once (firmware load).

@@ -112,33 +112,84 @@ bind_pci_mhi() {
   return 1
 }
 
+recover_modem() {
+  # Full modem recovery: MM off, drop stale MBIM proxy, MHI SoC reset, MM on.
+  # Needed when the MBIM channel wedges after resume: MM then logs
+  # "NotOpened" or "could not grab port wwan0mbim0 ... unhandled port type" and
+  # falls back to an AT-only modem that can never bring a bearer up.
+  systemctl stop ModemManager.service 2>/dev/null
+  pkill -x mbim-proxy 2>/dev/null || true
+  # Controller node only (mhi0), not channel children like mhi0_DIAG.
+  for r in /sys/bus/mhi/devices/mhi[0-9]/soc_reset /sys/bus/mhi/devices/mhi[0-9][0-9]/soc_reset; do
+    [ -w "$r" ] || continue
+    echo 1 > "$r" 2>/dev/null && log "recover: soc_reset via $r"
+    sleep 3
+    break
+  done
+  i=0
+  while [ ! -e /dev/wwan0mbim0 ] && [ $i -lt 40 ]; do sleep 0.5; i=$((i+1)); done
+  sleep 3
+  systemctl start ModemManager.service 2>/dev/null
+  log "recover: start ModemManager rc=$?"
+}
+
+mm_mbim_broken() {
+  # $1 = journalctl --since timestamp
+  journalctl -u ModemManager --since "$1" --no-pager -q 2>/dev/null \
+    | grep -qE "NotOpened|could not grab port wwan0mbim0|unhandled port type"
+}
+
 phase="${1:-}"
 case "$phase" in
   pre)
     log "pre: wwan_if=${WWAN_IF} pci_dev=${PCI_DEV}"
+    # Stop MM before unloading mhi; otherwise MM/mbim-proxy keep a stale MBIM
+    # channel and every post-resume connect fails with "MBIM protocol error: NotOpened".
+    systemctl stop ModemManager.service 2>/dev/null
+    log "pre: stop ModemManager rc=$?"
+    pkill -x mbim-proxy 2>/dev/null || true
     rfkill block wwan 2>/dev/null || true
     ip link set "$WWAN_IF" down 2>/dev/null || true
-
-    # modprobe only takes a single module name; unload in a safe order.
-    modprobe -r mhi_wwan_mbim 2>/dev/null || true
-    modprobe -r mhi_wwan_ctrl 2>/dev/null || true
-    modprobe -r mhi_pci_generic 2>/dev/null || true
-    modprobe -r mhi 2>/dev/null || true
-
     if unbind_pci; then log "pre: unbound ${PCI_DEV}"; else log "pre: unbind skipped/failed"; fi
+    modprobe -r mhi_wwan_mbim mhi_wwan_ctrl mhi_pci_generic mhi 2>/dev/null
+    log "pre: modprobe -r rc=$?"
     ;;
   post)
     log "post: wwan_if=${WWAN_IF} pci_dev=${PCI_DEV}"
-
-    # Ensure the PCI driver is present and bind the device back.
-    modprobe mhi_pci_generic 2>/dev/null || true
+    modprobe mhi_pci_generic 2>/dev/null
+    log "post: modprobe mhi_pci_generic rc=$?"
+    modprobe mhi_wwan_ctrl mhi_wwan_mbim 2>/dev/null
+    log "post: modprobe mhi_wwan_* rc=$?"
     if bind_pci_mhi; then log "post: bound ${PCI_DEV}"; else log "post: bind skipped/failed"; fi
-
-    # Load data/control paths.
-    modprobe mhi_wwan_ctrl 2>/dev/null || true
-    modprobe mhi_wwan_mbim 2>/dev/null || true
-
     rfkill unblock wwan 2>/dev/null || true
+    # Let the MBIM port appear and the firmware settle before MM probes it;
+    # probing too early leaves the modem in a state where every connect
+    # returns "NotOpened".
+    i=0
+    while [ ! -e /dev/wwan0mbim0 ] && [ $i -lt 20 ]; do sleep 0.5; i=$((i+1)); done
+    sleep 3
+    systemctl start ModemManager.service 2>/dev/null
+    log "post: start ModemManager rc=$?"
+    # Detached watchdog: recover the modem if the MBIM channel wedges anyway.
+    systemd-run --quiet --unit "mhi-wwan-watchdog-$(date +%s)" --collect \
+      /usr/local/libexec/mhi-wwan-sleep watchdog 2>/dev/null
+    ;;
+  watchdog)
+    since="$(date '+%Y-%m-%d %H:%M:%S')"
+    recoveries=0
+    n=0
+    while [ $n -lt 20 ]; do
+      sleep 15; n=$((n+1))
+      state="$(nmcli -t -f GENERAL.STATE dev show wwan0mbim0 2>/dev/null | cut -d: -f2)"
+      case "$state" in 100*) log "watchdog: connected after ${n}x15s (recoveries=${recoveries})"; exit 0 ;; esac
+      if [ $recoveries -lt 2 ] && mm_mbim_broken "$since"; then
+        recoveries=$((recoveries+1))
+        log "watchdog: MBIM channel broken, recovering modem (#${recoveries})"
+        recover_modem
+        since="$(date '+%Y-%m-%d %H:%M:%S')"
+      fi
+    done
+    log "watchdog: gave up, state=${state:-none}"
     ;;
   *)
     log "unknown phase: ${phase}"
@@ -150,7 +201,7 @@ EOF
 
 cat >"$tmp_unit" <<EOF
 [Unit]
-Description=Work around Quectel WWAN (mhi) suspend failure
+Description=Work around WWAN (mhi) suspend failure
 Before=sleep.target
 StopWhenUnneeded=yes
 
