@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Support the X1 Carbon Gen 14 Foxconn T99W696 WWAN modem (PCI `17cb:0308`) in `setup-wwan-docomo.sh`: detect the modem family by PCI id, install `lenovo-wwan-unlock` and enable `lenovo-cfgservice.service` for the FCC unlock, and re-run the unlock on `enable` instead of the Quectel-only `--direct-mbim` path.
+- Harden the MHI WWAN suspend hook: stop ModemManager and `mbim-proxy` before unloading MHI, wait for `wwan0mbim0` before restarting it on resume, and run a post-resume watchdog that recovers a wedged MBIM channel (`NotOpened`) with up to two MHI `soc_reset` recoveries.
 - Register `/usr/lib/cskk` with the dynamic linker for any `libcskk.so.N`; cskk 4.0 ships `libcskk.so.4`, so the previous `.so.3`-only check skipped the fix and CSKK failed to load.
 - Preserve the current right-side ordering on apply: keep the personal-control drawer directly after the system tray and place agents after Bluetooth. The system tray and personal controls remain separate.
 - Move the remaining center indicators, keyboard layout, weather, and update widgets beside the left-aligned clock, leaving the center empty without disabling their features.
