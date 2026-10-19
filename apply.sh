@@ -26,7 +26,7 @@ Options:
   --skip-packages      Skip package install via yay (keyd must already be installed)
   --gtk-gsettings       Also set GTK prefs via gsettings (Emacs keys + button layout) [default]
   --no-gtk-gsettings    Do not touch GTK gsettings
-  --no-bar             Skip Quattro shell widgets and idle settings
+  --no-bar             Skip Quattro shell widgets, font override, and idle settings
   --with-shaders       Symlink ~/.config/hypr/shaders from /usr/share/aether/shaders
   --force-monitors     Apply bundled hardware-specific monitor settings
   --force-nvidia-env   Apply NVIDIA environment settings
@@ -91,6 +91,7 @@ preflight() {
     .config/systemd/user/lid-nosuspend.service \
     .config/systemd/user/hypr-auto-rotate.service \
     .config/omarchy/hey-omarchy.json \
+    .config/omarchy/shell.toml \
     .config/omarchy/plugins/hey-omarchy/manifest.json \
     .config/omarchy/plugins/hey-omarchy-lock/manifest.json \
     .local/bin/hey-hypr-common \
@@ -896,9 +897,9 @@ ensure_libcskk_ldconfig
 
 restart_fcitx
 
-# Quattro shell custom widgets and idle behavior.
+# Quattro shell custom widgets, font override, and idle behavior.
 if (( NO_BAR )); then
-  log "skip: shell widgets and idle settings (--no-bar)"
+  log "skip: shell widgets, font override, and idle settings (--no-bar)"
 else
   while IFS= read -r -d '' src; do
     rel="${src#"$SRC_HOME/"}"
@@ -908,6 +909,7 @@ else
     install_file "$src" "$HOME/$rel" "$mode"
   done < <(find "$SRC_HOME/.config/omarchy/plugins" -type f -print0)
   configure_shell
+  install_file "$SRC_HOME/.config/omarchy/shell.toml" "$HOME/.config/omarchy/shell.toml" 0644
 fi
 
 # Optional shaders directory

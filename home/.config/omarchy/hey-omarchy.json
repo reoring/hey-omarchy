@@ -34,5 +34,8 @@
   "barAdditions": [
     { "section": "right", "after": "omarchy.tray", "entry": { "id": "hey-omarchy" } },
     { "section": "right", "after": "hey-omarchy", "entry": { "id": "omarchy.tailscale" } }
-  ]
+  ],
+  "barWidgetSettings": {
+    "reoring.power": { "showPercentage": true }
+  }
 }

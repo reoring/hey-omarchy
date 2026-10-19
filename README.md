@@ -16,6 +16,7 @@ Docs: [Japanese README](README.ja.md), [shortcut guide](docs/user-guide.md), [Ja
 - Caps→Ctrl remains in Hyprland, with key repeat 40/600, natural touchpad scrolling at 0.4, and touchpad use while typing.
 - Super+H/J/K/L focus, personal app/web-app shortcuts, opacity tags, blur, gaps, scale, refresh rate, monitor positioning, nightlight, and display controls.
 - Native bar controls: lid suspension, Fcitx JP/EN, keyboard cleaning, cursor visibility, and rain in the personal drawer; roBa Bluetooth, mobile data (WWAN), main monitor/DDC brightness, and CPU usage/frequency limits inside the Bluetooth, network, display, and power panels; Tailscale through Omarchy's own widget.
+- Battery percentage beside the power icon and shell text size 12 (`[font] base-size` in `~/.config/omarchy/shell.toml`).
 - Fifteen-minute idle lock and sixteen-minute display blanking, without a preceding screensaver. Resume restores display brightness.
 - Sensor-driven display/touch/pen rotation and the existing service's enabled/disabled state.
 - Fcitx5/CSKK ASCII passthrough and GTK Emacs-style keys/window controls.
@@ -38,6 +39,8 @@ The legacy `waybar-*` executable names remain JSON status producers used by Quic
 | `~/.config/omarchy/plugins/hey-omarchy-lock/` | User-owned lock plugin preserving the old display timeout |
 | `~/.config/omarchy/plugins/reoring.rain/` | Bundled wallpaper rain and glass droplets, including the compiled shader; enabling is left to the user's shell configuration |
 | `~/.config/omarchy/plugins/reoring.{bluetooth,network,monitor,power}/` | Clones of the stock Omarchy 4.0.4 panels with roBa, mobile-data, DDC/main-monitor, and CPU sections; they take the stock widgets' bar positions |
+| `~/.config/omarchy/plugins/reoring.background/` | Clone of the stock background service that loops `<wallpaper>.mp4` when one sits beside the current wallpaper; installed but not enabled (`omarchy plugin enable reoring.background`) |
+| `~/.config/omarchy/shell.toml` | Machine-level shell override, as written by `omarchy display text size`: `[font] base-size = 12` |
 | `~/.local/bin/` | Adjustment, status, input, network, and hardware helpers |
 | `~/.config/systemd/user/` | Lid inhibitor and automatic rotation services |
 
@@ -74,14 +77,14 @@ Hyprland uses an empty `kb_file` and retains `kb_options = "ctrl:nocaps"`; the o
 
 Applying briefly restarts `omarchy-fcitx5.service` if active, validates and reloads Hyprland, and restarts the desktop shell to avoid stale cached QML components. Applications and the login session stay running. If a keyd remap makes typing unusable, press **Backspace+Escape+Enter together** to stop keyd; fix its configuration before starting it again.
 
-Unchanged files are skipped. Reapplication replaces the old individual personal widgets with one control drawer, removes workspace labels, and moves the clock left without changing its format. It swaps the stock Bluetooth, network, display, and power entries for the personal clones in the same positions, keeping their settings, and adds Tailscale after the drawer. Other widgets remain intact. **Managed files are replaced by the repository copies, not merged**, after saving adjacent timestamped backups; review local changes before applying and bring them into the bundle first. Shell JSON is merged, but bundle-owned settings such as idle timeouts and the compact bar layout are reapplied. Old live `.conf` files and Quattro migration backups are not deleted.
+Unchanged files are skipped. Reapplication replaces the old individual personal widgets with one control drawer, removes workspace labels, and moves the clock left without changing its format. It swaps the stock Bluetooth, network, display, and power entries for the personal clones in the same positions, keeping their settings, adds Tailscale after the drawer, and turns on the power widget's battery percentage. Other widgets remain intact. **Managed files are replaced by the repository copies, not merged**, after saving adjacent timestamped backups; review local changes before applying and bring them into the bundle first. Shell JSON is merged, but bundle-owned settings such as idle timeouts, the compact bar layout, and the battery percentage are reapplied. Old live `.conf` files and Quattro migration backups are not deleted.
 
 Options:
 
 - `--check`: inspect required files and available tools without authentication or host changes.
 - `--dry-run`: show proposed operations without authentication or host changes.
 - `--skip-packages`: skip yay package installation; keyd must already be installed.
-- `--no-bar`: skip shell widgets and idle settings.
+- `--no-bar`: skip shell widgets, the font override, and idle settings.
 - `--gtk-gsettings` / `--no-gtk-gsettings`: enable/disable GTK preference application (enabled by default).
 - `--force-monitors`: apply generic preferred-mode/automatic-position/automatic-scale monitor policy; otherwise preserve `monitors.lua`.
 - `--force-nvidia-env` / `--skip-nvidia-env`: override NVIDIA detection. AMD/Intel systems receive no NVIDIA variables by default.
@@ -139,7 +142,7 @@ omarchy shell lock status
 bash tests/run.sh
 ```
 
-Edit the bundle's `home/` files and reapply, or edit installed user copies directly. `home/.config/omarchy/hey-omarchy.json` is an installer fragment, not a replacement shell configuration. `barRemovals` remove matching widgets, `barReplacements` swap a stock widget for its clone in place with its settings (skipped once the clone is present), `barMoves` relocate existing entries with their settings intact, and `barAdditions` insert missing entries; `barSettings` overrides bar-level options. Unrelated settings remain intact.
+Edit the bundle's `home/` files and reapply, or edit installed user copies directly. `home/.config/omarchy/hey-omarchy.json` is an installer fragment, not a replacement shell configuration. `barRemovals` remove matching widgets, `barReplacements` swap a stock widget for its clone in place with its settings (skipped once the clone is present), `barMoves` relocate existing entries with their settings intact, `barAdditions` insert missing entries, and `barWidgetSettings` reassert bundle-owned widget options on every apply; `barSettings` overrides bar-level options. Unrelated settings remain intact.
 
 Quattro's stock Super+J/K/L and several Ctrl shortcuts are intentionally overridden; see the shortcut guide. `Super+Ctrl+Y` now toggles the native bar, and `Hyper+\` toggles persistent automatic rotation without occupying workspace 19's `Hyper+O`.
 

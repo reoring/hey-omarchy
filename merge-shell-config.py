@@ -79,6 +79,16 @@ def merge(config, fragment):
             continue
         insert(layout[addition['section']], entry, addition)
 
+    # Bundle-owned widget options, reasserted on every apply like idle timeouts,
+    # so clones swapped in by an earlier apply receive them too.
+    for widget_id, settings in fragment.get('barWidgetSettings', {}).items():
+        for widgets in layout.values():
+            for index, widget in enumerate(widgets):
+                if matches(widget, widget_id):
+                    if isinstance(widget, str):
+                        widgets[index] = widget = {'id': widget}
+                    widget.update(settings)
+
     disabled = [plugin for plugin in config.get('disabledPlugins', []) if plugin not in enabled]
     for plugin in fragment.get('disabledPlugins', []):
         if plugin not in disabled:

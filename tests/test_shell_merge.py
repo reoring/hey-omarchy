@@ -39,6 +39,7 @@ with tempfile.TemporaryDirectory() as directory:
             {'section': 'right', 'before': 'reoring.network', 'entry': {
                 'id': 'hey-omarchy'}},
         ],
+        'barWidgetSettings': {'reoring.power': {'showPercentage': True}},
         'idle': {'lock': 900},
         'disabledPlugins': ['omarchy.lock'],
         'cloneSourceRestores': ['hey-omarchy-lock'],
@@ -59,7 +60,8 @@ with tempfile.TemporaryDirectory() as directory:
     assert first['bar']['layout']['left'] == ['omarchy.menu', clock]
     assert first['bar']['layout']['center'] == []
     assert first['bar']['layout']['right'] == [
-        {'id': 'hey-omarchy'}, {'id': 'reoring.network', 'userSetting': 'kept'}, {'id': 'reoring.power'}], \
+        {'id': 'hey-omarchy'}, {'id': 'reoring.network', 'userSetting': 'kept'},
+        {'id': 'reoring.power', 'showPercentage': True}], \
         'clones must take the stock position and settings; a removed stock widget stays absent'
     assert unrelated_plugin in first['plugins']
     assert first['unrelatedSetting'] == config['unrelatedSetting']
@@ -67,4 +69,8 @@ with tempfile.TemporaryDirectory() as directory:
     assert first['disabledPlugins'] == ['local.disabled', 'omarchy.lock']
     assert first['cloneSourceRestores'] == ['hey-omarchy-lock']
     assert apply() == first, 'reapplication must retain positions and avoid duplicate widgets/plugins'
+    stale = json.loads(config_path.read_text())
+    del stale['bar']['layout']['right'][2]['showPercentage']
+    config_path.write_text(json.dumps(stale))
+    assert apply() == first, 'bundle-owned widget options must reach clones swapped in by an earlier apply'
 print('PASS: compact bar migration preserves widget settings and is idempotent')
