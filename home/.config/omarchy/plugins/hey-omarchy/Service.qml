@@ -2,7 +2,6 @@ import QtQuick
 import QtQml.Models
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 import "Widgets.js" as Widgets
 
 Item {
@@ -10,7 +9,6 @@ Item {
   property var shell: null
   readonly property string bin: Quickshell.env("HOME") + "/.local/bin/"
   property var statuses: ({})
-  property var cpuPrevious: null
   property bool controlsExpanded: false
 
   function publish(name, status) {
@@ -20,7 +18,6 @@ Item {
   }
 
   function refresh(name) {
-    if (name === "all" || name === "cpu") cpuStats.reload()
     for (var i = 0; i < sources.count; i++) {
       var source = sources.objectAt(i)
       if (source && (name === "all" || source.definition.name === name)) source.refresh()
@@ -83,45 +80,6 @@ Item {
         repeat: true
         triggeredOnStart: true
         onTriggered: source.refresh()
-      }
-    }
-  }
-
-  // /proc/stat supplies the old CPU percentage without launching a command.
-  FileView {
-    id: cpuStats
-    path: "/proc/stat"
-    printErrors: false
-    onLoaded: {
-      var fields = text().split("\n")[0].trim().split(/\s+/)
-      if (fields[0] !== "cpu" || fields.length < 9) return
-      var total = 0
-      for (var i = 1; i <= 8; i++) total += Number(fields[i])
-      var idle = Number(fields[4]) + Number(fields[5])
-      var previous = root.cpuPrevious
-      root.cpuPrevious = { total: total, idle: idle }
-      if (previous && total > previous.total) {
-        var usage = Math.round(100 * (1 - (idle - previous.idle) / (total - previous.total)))
-        root.publish("cpu", { text: "󰍛", tooltip: "CPU usage: " + usage + "%", class: "" })
-      } else {
-        root.publish("cpu", { text: "󰍛", tooltip: "CPU usage: measuring", class: "" })
-      }
-    }
-  }
-
-  Timer {
-    interval: 5000
-    running: true
-    repeat: true
-    onTriggered: cpuStats.reload()
-  }
-
-  Connections {
-    target: Hyprland
-    function onRawEvent(event) {
-      if (["monitoradded", "monitoraddedv2", "monitorremoved"].indexOf(String(event.name)) !== -1) {
-        root.refresh("main-monitor")
-        root.refresh("ddc-brightness")
       }
     }
   }

@@ -2,7 +2,7 @@
 
 reoring's personal configuration bundle for **Omarchy Quattro (4.x)**, using native Hyprland Lua and the Quickshell desktop shell. Omarchy 3's Hyprland/Waybar configuration is no longer installed.
 
-The bundle leaves Omarchy-managed source files untouched. `apply.sh` backs up changed user files, installs dedicated modules, appends their loader to `hyprland.lua`, and merges custom widgets into the existing `shell.json`. It also installs the system keyd configuration described below using sudo. Ordinary user Lua modules and unrelated shell settings are preserved. The bar hides workspace labels, moves the existing clock beside the left menu, and groups personal controls behind one right-side toggle.
+The bundle leaves Omarchy-managed source files untouched. `apply.sh` backs up changed user files, installs dedicated modules, appends their loader to `hyprland.lua`, and merges custom widgets into the existing `shell.json`. It also installs the system keyd configuration described below using sudo. Ordinary user Lua modules and unrelated shell settings are preserved. The bar hides workspace labels, moves the existing clock beside the left menu, and groups personal controls behind one right-side toggle. The stock Bluetooth, network, display, and power widgets are replaced in place by personal clones that absorb the former roBa, WWAN, DDC/main-monitor, and CPU controls, and Omarchy's Tailscale widget joins the right side.
 
 Docs: [Japanese README](README.ja.md), [shortcut guide](docs/user-guide.md), [Japanese shortcut guide](user-guide.ja.md), [CSKK notes](japanese/cskk.md).
 
@@ -15,7 +15,7 @@ Docs: [Japanese README](README.ja.md), [shortcut guide](docs/user-guide.md), [Ja
 - A taps normally and holds Ctrl after 250 ms, but stays a literal A when pressed within 200 ms of recent typing. Fast overlapping taps do not force Ctrl. This favors typing safety over immediate Ctrl chords; an A after a pause appears on release.
 - Caps→Ctrl remains in Hyprland, with key repeat 40/600, natural touchpad scrolling at 0.4, and touchpad use while typing.
 - Super+H/J/K/L focus, personal app/web-app shortcuts, opacity tags, blur, gaps, scale, refresh rate, monitor positioning, nightlight, and display controls.
-- Native bar controls for main monitor, DDC brightness, Fcitx JP/EN, lid suspension, keyboard cleaning, cursor visibility, roBa Bluetooth, WWAN, Tailscale, CPU/btop, and CPU frequency limits/boost.
+- Native bar controls: lid suspension, Fcitx JP/EN, keyboard cleaning, cursor visibility, and rain in the personal drawer; roBa Bluetooth, mobile data (WWAN), main monitor/DDC brightness, and CPU usage/frequency limits inside the Bluetooth, network, display, and power panels; Tailscale through Omarchy's own widget.
 - Fifteen-minute idle lock and sixteen-minute display blanking, without a preceding screensaver. Resume restores display brightness.
 - Sensor-driven display/touch/pen rotation and the existing service's enabled/disabled state.
 - Fcitx5/CSKK ASCII passthrough and GTK Emacs-style keys/window controls.
@@ -37,14 +37,15 @@ The legacy `waybar-*` executable names remain JSON status producers used by Quic
 | `~/.config/omarchy/plugins/hey-omarchy/` | Shared status service and native widgets |
 | `~/.config/omarchy/plugins/hey-omarchy-lock/` | User-owned lock plugin preserving the old display timeout |
 | `~/.config/omarchy/plugins/reoring.rain/` | Bundled wallpaper rain and glass droplets, including the compiled shader; enabling is left to the user's shell configuration |
+| `~/.config/omarchy/plugins/reoring.{bluetooth,network,monitor,power}/` | Clones of the stock Omarchy 4.0.4 panels with roBa, mobile-data, DDC/main-monitor, and CPU sections; they take the stock widgets' bar positions |
 | `~/.local/bin/` | Adjustment, status, input, network, and hardware helpers |
 | `~/.config/systemd/user/` | Lid inhibitor and automatic rotation services |
 
 The lock plugin is based on Omarchy **4.0.2**, with the host's face-unlock extension restored. Its display idle timeout is configurable as `idle.dpms`. Face scanning requires the existing trusted `/etc/pam.d/omarchy-lock-face` service, Howdy installation/account gate under `/opt/howdy/`, camera configuration, enrolled models, and `dbus-monitor`. This bundle does not install or overwrite that authentication stack or copy biometric data; without the face PAM service, face unlock stays disabled and password/fingerprint handling remains available as configured. F2 or clicking the face hint retries recognition; password input, sleep, and display blanking cancel a scan. Review/rebase this user-owned clone when upgrading Omarchy; package updates do not update local clones automatically.
 
-The `cpu-frequency` widget uses the bundled `hey-cpu-frequency` helper. Status is read-only and refreshes every 30 seconds. Left click opens upper-limit/uncap/boost choices; right click opens btop. Changes require Polkit authorization through `pkexec`, supported Linux cpufreq controls, and the Omarchy menu/notification commands. Limits are temporary, not fixed CPU clocks, and may reset on reboot or power-management changes.
+The personal panels replace the drawer's former hardware widgets. Bluetooth pins roBa in a FAVORITE row (connect/pair/disconnect through `waybar-bt-roba-toggle`). Network adds MOBILE DATA for the ModemManager modem and the `docomo` NetworkManager connection: operator, registration, access technology, 5G/LTE signal, a connect toggle, and Auto/5G/4G mode pills; the bar shows the cellular generation only while the modem is connected, beside Wi-Fi when both are up, and machines without a modem show no mobile section. Display adds EXTERNAL BRIGHTNESS when an external display answers DDC/CI, MAIN DISPLAY, and EXTERNAL POSITION. Power adds a CPU section with usage, clock, upper limit, driver maximum, a btop button, and upper-limit/Max pills applied by the bundled `hey-cpu-frequency`; changes require Polkit authorization through `pkexec` and supported Linux cpufreq controls, and limits are temporary, not fixed CPU clocks. These clones do not receive Omarchy package updates; review them against the stock panels when upgrading Omarchy.
 
-Click `⋯` on the right to show all 13 personal controls; click `‹` to hide them again. The drawer starts closed after a shell restart. Hiding controls does not disable their functions or status polling. Standard network, audio, and power widgets stay visible.
+Click `⋯` on the right to show the five personal controls; click `‹` to hide them again. The drawer starts closed after a shell restart. Hiding controls does not disable their functions or status polling. Tailscale, Bluetooth, network, audio, display, and power widgets stay visible.
 
 ## Apply
 
@@ -73,7 +74,7 @@ Hyprland uses an empty `kb_file` and retains `kb_options = "ctrl:nocaps"`; the o
 
 Applying briefly restarts `omarchy-fcitx5.service` if active, validates and reloads Hyprland, and restarts the desktop shell to avoid stale cached QML components. Applications and the login session stay running. If a keyd remap makes typing unusable, press **Backspace+Escape+Enter together** to stop keyd; fix its configuration before starting it again.
 
-Unchanged files are skipped. Reapplication replaces the old individual personal widgets with one control drawer, removes workspace labels, and moves the clock left without changing its format. Other widgets remain intact. **Managed files are replaced by the repository copies, not merged**, after saving adjacent timestamped backups; review local changes before applying and bring them into the bundle first. Shell JSON is merged, but bundle-owned settings such as idle timeouts and the compact bar layout are reapplied. Old live `.conf` files and Quattro migration backups are not deleted.
+Unchanged files are skipped. Reapplication replaces the old individual personal widgets with one control drawer, removes workspace labels, and moves the clock left without changing its format. It swaps the stock Bluetooth, network, display, and power entries for the personal clones in the same positions, keeping their settings, and adds Tailscale after the drawer. Other widgets remain intact. **Managed files are replaced by the repository copies, not merged**, after saving adjacent timestamped backups; review local changes before applying and bring them into the bundle first. Shell JSON is merged, but bundle-owned settings such as idle timeouts and the compact bar layout are reapplied. Old live `.conf` files and Quattro migration backups are not deleted.
 
 Options:
 
@@ -138,7 +139,7 @@ omarchy shell lock status
 bash tests/run.sh
 ```
 
-Edit the bundle's `home/` files and reapply, or edit installed user copies directly. `home/.config/omarchy/hey-omarchy.json` is an installer fragment, not a replacement shell configuration. `barRemovals` remove matching widgets, `barMoves` relocate existing entries with their settings intact, and `barAdditions` insert missing entries; `barSettings` overrides bar-level options. Unrelated settings remain intact.
+Edit the bundle's `home/` files and reapply, or edit installed user copies directly. `home/.config/omarchy/hey-omarchy.json` is an installer fragment, not a replacement shell configuration. `barRemovals` remove matching widgets, `barReplacements` swap a stock widget for its clone in place with its settings (skipped once the clone is present), `barMoves` relocate existing entries with their settings intact, and `barAdditions` insert missing entries; `barSettings` overrides bar-level options. Unrelated settings remain intact.
 
 Quattro's stock Super+J/K/L and several Ctrl shortcuts are intentionally overridden; see the shortcut guide. `Super+Ctrl+Y` now toggles the native bar, and `Hyper+\` toggles persistent automatic rotation without occupying workspace 19's `Hyper+O`.
 

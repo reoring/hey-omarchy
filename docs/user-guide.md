@@ -72,10 +72,10 @@ Switch which monitor is considered "main" with `Super+Ctrl+M`.
 
 
 Indicators, keyboard layout, weather, and updates also sit beside the left clock, leaving the center empty.
-The bar hides workspace labels and places the existing clock beside the left menu; workspace shortcuts are unchanged. Click `⋯` on the right to show personal controls, and `‹` to hide them. The drawer starts closed after a shell restart; hiding it does not turn off any feature. Inside it, the main-monitor control is clickable:
+The bar hides workspace labels and places the existing clock beside the left menu; workspace shortcuts are unchanged. Click `⋯` on the right to show personal controls, and `‹` to hide them. The drawer starts closed after a shell restart; hiding it does not turn off any feature. Main-monitor controls live in the display panel (click the display icon):
 
-- Left click: toggle main monitor
-- Right click: set external monitor position (left/right/up/down)
+- MAIN DISPLAY: switch the main monitor between internal and external
+- EXTERNAL POSITION: place the external monitor left/right/up/down
 
 You can also run `hypr-monitor-position menu` or `hypr-monitor-position left|right|up|down`.
 
@@ -100,7 +100,7 @@ Hold Hyper and an additional Shift, then press the same letter, semicolon, or nu
 ## Restored face unlock and CPU frequency control
 
 - The lock screen shows face-scan status and offers F2/click to retry. Password submission, sleep, and display blanking cancel recognition. The existing trusted Howdy/PAM setup and enrolled models are prerequisites, not installed or copied by this bundle; without face PAM, face unlock stays disabled.
-- The CPU-frequency widget reports upper limits/boost every 30 seconds. Left click opens its menu; right click opens btop. Changes require Polkit authorization and supported cpufreq controls, preserve lower limits, and are temporary. `hey-cpu-frequency status` is read-only.
+- The power panel's CPU section shows usage, clock, upper limit, and driver maximum. Its pills apply a temporary upper limit or Max (uncap) through `hey-cpu-frequency`, and its btop button opens btop. Changes require Polkit authorization and supported cpufreq controls and preserve lower limits. `hey-cpu-frequency status` is read-only.
 
 ## Rain effect toggle
 

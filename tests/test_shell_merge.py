@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compact bar migration preserves clock settings and unrelated configuration."""
+"""Compact bar migration preserves widget settings and unrelated configuration."""
 import json
 import subprocess
 import sys
@@ -12,11 +12,12 @@ with tempfile.TemporaryDirectory() as directory:
     fragment_path = Path(directory) / 'fragment.json'
     custom_widget = {'id': 'hey-omarchy', 'name': 'main-monitor', 'userColor': '#abcdef'}
     clock = {'id': 'omarchy.clock', 'format': 'HH:mm:ss'}
+    network = {'id': 'omarchy.network', 'userSetting': 'kept'}
     unrelated_plugin = {'id': 'local.example', 'setting': 42}
     config = {
         'bar': {'position': 'bottom', 'centerAnchor': 'omarchy.clock', 'layout': {
             'left': ['omarchy.menu', 'omarchy.workspaces', custom_widget], 'center': [clock], 'right': [
-                {'id': 'hey-omarchy', 'name': 'fcitx-en'}, 'omarchy.power']}},
+                {'id': 'hey-omarchy', 'name': 'fcitx-en'}, network, 'omarchy.power']}},
         'plugins': [unrelated_plugin],
         'disabledPlugins': ['local.disabled', 'hey-omarchy'],
         'idle': {'lock': 300, 'customSetting': True},
@@ -29,8 +30,13 @@ with tempfile.TemporaryDirectory() as directory:
         'barMoves': [
             {'widget': 'omarchy.clock', 'section': 'left', 'after': 'omarchy.menu'},
         ],
+        'barReplacements': [
+            {'widget': 'omarchy.network', 'entry': {'id': 'reoring.network'}},
+            {'widget': 'omarchy.power', 'entry': {'id': 'reoring.power'}},
+            {'widget': 'omarchy.monitor', 'entry': {'id': 'reoring.monitor'}},
+        ],
         'barAdditions': [
-            {'section': 'right', 'before': 'omarchy.power', 'entry': {
+            {'section': 'right', 'before': 'reoring.network', 'entry': {
                 'id': 'hey-omarchy'}},
         ],
         'idle': {'lock': 900},
@@ -52,11 +58,13 @@ with tempfile.TemporaryDirectory() as directory:
     assert first['bar']['centerAnchor'] == ''
     assert first['bar']['layout']['left'] == ['omarchy.menu', clock]
     assert first['bar']['layout']['center'] == []
-    assert first['bar']['layout']['right'] == [{'id': 'hey-omarchy'}, 'omarchy.power']
+    assert first['bar']['layout']['right'] == [
+        {'id': 'hey-omarchy'}, {'id': 'reoring.network', 'userSetting': 'kept'}, {'id': 'reoring.power'}], \
+        'clones must take the stock position and settings; a removed stock widget stays absent'
     assert unrelated_plugin in first['plugins']
     assert first['unrelatedSetting'] == config['unrelatedSetting']
     assert first['idle'] == {'lock': 900, 'customSetting': True}
     assert first['disabledPlugins'] == ['local.disabled', 'omarchy.lock']
     assert first['cloneSourceRestores'] == ['hey-omarchy-lock']
     assert apply() == first, 'reapplication must retain positions and avoid duplicate widgets/plugins'
-print('PASS: compact bar migration preserves clock settings and is idempotent')
+print('PASS: compact bar migration preserves widget settings and is idempotent')

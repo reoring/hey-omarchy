@@ -44,6 +44,22 @@ def merge(config, fragment):
         for widgets in layout.values():
             widgets[:] = [widget for widget in widgets if not matches(widget, selector)]
 
+    # Swap a stock widget for its clone in place, keeping position and settings,
+    # as Omarchy does when enabling a cloned bar widget. A clone already in the
+    # layout means the swap was done before; absence of the stock entry is kept.
+    for replacement in fragment.get('barReplacements', []):
+        entry = replacement['entry']
+        enabled.add(entry['id'])
+        if any(matches(widget, entry['id']) for widgets in layout.values() for widget in widgets):
+            continue
+        for widgets in layout.values():
+            index = next((i for i, widget in enumerate(widgets)
+                          if matches(widget, replacement['widget'])), None)
+            if index is not None:
+                source = widgets[index]
+                widgets[index] = {**source, **entry} if isinstance(source, dict) else dict(entry)
+                break
+
     for move in fragment.get('barMoves', []):
         entry = None
         for widgets in layout.values():

@@ -902,7 +902,10 @@ if (( NO_BAR )); then
 else
   while IFS= read -r -d '' src; do
     rel="${src#"$SRC_HOME/"}"
-    install_file "$src" "$HOME/$rel" 0644
+    # Plugins may ship helpers they execute directly (reoring.network/mobile-status).
+    mode=0644
+    [[ -x "$src" ]] && mode=0755
+    install_file "$src" "$HOME/$rel" "$mode"
   done < <(find "$SRC_HOME/.config/omarchy/plugins" -type f -print0)
   configure_shell
 fi

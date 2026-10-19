@@ -17,15 +17,22 @@
     "omarchy.workspaces",
     "hey-omarchy"
   ],
+  "barReplacements": [
+    { "widget": "omarchy.bluetooth", "entry": { "id": "reoring.bluetooth" } },
+    { "widget": "omarchy.network", "entry": { "id": "reoring.network" } },
+    { "widget": "omarchy.monitor", "entry": { "id": "reoring.monitor" } },
+    { "widget": "omarchy.power", "entry": { "id": "reoring.power" } }
+  ],
   "barMoves": [
     { "widget": "omarchy.clock", "section": "left", "after": "omarchy.menu" },
     { "widget": "omarchy.indicators", "section": "left", "after": "omarchy.clock" },
     { "widget": "omarchy.keyboard-layout", "section": "left", "after": "omarchy.indicators" },
     { "widget": "omarchy.weather", "section": "left", "after": "omarchy.keyboard-layout" },
     { "widget": "omarchy.system-update", "section": "left", "after": "omarchy.weather" },
-    { "widget": "omarchy.agents", "section": "right", "after": "omarchy.bluetooth" }
+    { "widget": "omarchy.agents", "section": "right", "after": "reoring.bluetooth" }
   ],
   "barAdditions": [
-    { "section": "right", "after": "omarchy.tray", "entry": { "id": "hey-omarchy" } }
+    { "section": "right", "after": "omarchy.tray", "entry": { "id": "hey-omarchy" } },
+    { "section": "right", "after": "hey-omarchy", "entry": { "id": "omarchy.tailscale" } }
   ]
 }

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Bundle the bar consolidation: personal clones of the stock Bluetooth, network, display, and power panels (`reoring.*`) absorb roBa, mobile data (5G/LTE status, signal, connect toggle, Auto/5G/4G), DDC brightness, main monitor/external position, and CPU usage/frequency limits; Omarchy's Tailscale widget replaces the drawer's Tailscale control, leaving five drawer controls. Apply swaps the stock entries in place through the new `barReplacements` fragment step, keeping their settings, and installs executable plugin helpers such as `mobile-status` with their exec bit.
 - Support the X1 Carbon Gen 14 Foxconn T99W696 WWAN modem (PCI `17cb:0308`) in `setup-wwan-docomo.sh`: detect the modem family by PCI id, install `lenovo-wwan-unlock` and enable `lenovo-cfgservice.service` for the FCC unlock, and re-run the unlock on `enable` instead of the Quectel-only `--direct-mbim` path.
 - Harden the MHI WWAN suspend hook: stop ModemManager and `mbim-proxy` before unloading MHI, wait for `wwan0mbim0` before restarting it on resume, and run a post-resume watchdog that recovers a wedged MBIM channel (`NotOpened`) with up to two MHI `soc_reset` recoveries.
 - Register `/usr/lib/cskk` with the dynamic linker for any `libcskk.so.N`; cskk 4.0 ships `libcskk.so.4`, so the previous `.so.3`-only check skipped the fix and CSKK failed to load.

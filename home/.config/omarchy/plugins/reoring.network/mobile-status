@@ -1,0 +1,39 @@
+#!/bin/sh
+# Cellular modem state for the network panel, as key<TAB>value lines (same
+# shape as `omarchy-network-status --verbose`, so Model.parseKeyValue reads
+# it). Prints nothing when ModemManager has no modem.
+
+conn="${1:-docomo}"
+
+modem="$(mmcli -J -m any 2>/dev/null)"
+[ -n "$modem" ] || exit 0
+
+printf '%s' "$modem" | jq -r '
+  .modem.generic as $g | .modem."3gpp" as $t |
+  "state\t\($g.state // "")",
+  "rat\t\(($g."access-technologies" // []) | join(","))",
+  "quality\t\($g."signal-quality".value // "")",
+  "modes\t\($g."current-modes" // "")",
+  "operator\t\($t."operator-name" // "")",
+  "registration\t\($t."registration-state" // "")"
+'
+
+# Per-RAT signal detail. Polling is off after every ModemManager restart
+# (i.e. every resume), so arm it on demand.
+sig="$(mmcli -J -m any --signal-get 2>/dev/null)"
+if [ "$(printf '%s' "$sig" | jq -r '.modem.signal.refresh.rate // "0"')" = "0" ]; then
+  mmcli -m any --signal-setup=10 >/dev/null 2>&1
+  sig="$(mmcli -J -m any --signal-get 2>/dev/null)"
+fi
+printf '%s' "$sig" | jq -r '
+  .modem.signal as $s |
+  "nr_rsrp\t\($s."5g".rsrp // "--")",
+  "nr_snr\t\($s."5g".snr // "--")",
+  "lte_rsrp\t\($s.lte.rsrp // "--")",
+  "lte_snr\t\($s.lte.snr // "--")",
+  "lte_rssi\t\($s.lte.rssi // "--")"
+' 2>/dev/null
+
+# NetworkManager's view of the data connection: "activated", "activating",
+# "deactivating", or empty when the profile is down.
+printf 'nm_state\t%s\n' "$(nmcli -g GENERAL.STATE connection show "$conn" 2>/dev/null)"
