@@ -75,7 +75,7 @@ may need to reconnect (depending on how WWAN is managed on the system).
 ## WWAN Data (Docomo SIM)
 
 This directory includes a setup script that configures WWAN using ModemManager +
-NetworkManager, while leaving Wi-Fi/Ethernet to systemd-networkd/iwd.
+NetworkManager, which Omarchy already uses for Wi-Fi and Ethernet.
 
 Troubleshooting notes (what we actually hit on RM520N-GL) are in:
 

@@ -17,18 +17,19 @@ Hardware/driver stack (observed):
 
 ## Recommended management stack
 
-Use ModemManager + NetworkManager for WWAN.
+Use ModemManager + NetworkManager for WWAN. Omarchy already runs NetworkManager
+for Wi-Fi and Ethernet (systemd-networkd is retired), so WWAN is one more
+NetworkManager device.
 
-If the system already uses systemd-networkd/iwd for Wi-Fi/Ethernet, keep them and
-ensure only one network manager touches each interface:
-
-- NetworkManager: manage only WWAN devices
-- systemd-networkd: ignore ww* links
-
-`setup-wwan-docomo.sh install` writes:
+Older versions of `setup-wwan-docomo.sh` split interfaces between NetworkManager
+(WWAN only) and systemd-networkd/iwd (Wi-Fi/Ethernet) by writing:
 
 - /etc/NetworkManager/conf.d/10-wwan-only.conf
 - /etc/systemd/network/10-wwan-unmanaged.network
+
+With systemd-networkd retired, that split leaves Ethernet unmanaged (no link, no
+DHCP). `setup-wwan-docomo.sh install` and `uninstall` remove both files when they
+carry the hey-omarchy marker.
 
 ## Failure mode: "software radio switch is OFF" (RM520N-GL)
 

@@ -8,18 +8,17 @@ set -euo pipefail
 # - Foxconn T99W696 (17cb:0308)       X1 Carbon Gen 14: radio is FCC-locked; needs the
 #                                     lenovo-wwan-unlock dispatcher (fcc-unlock.d/17cb:0308)
 #
-# This machine commonly runs Wi-Fi/Ethernet with systemd-networkd + iwd.
-# WWAN is easiest to manage via ModemManager + NetworkManager.
+# Omarchy runs NetworkManager for every interface (systemd-networkd is retired),
+# so WWAN is one more NetworkManager device driven by ModemManager.
 #
-# Running NetworkManager alongside systemd-networkd is NOT recommended unless you
-# ensure they don't manage the same interfaces. This script configures:
-# - NetworkManager: manage only WWAN devices
-# - systemd-networkd: ignore WWAN devices
+# Older versions of this script split interfaces between NetworkManager (WWAN
+# only) and systemd-networkd/iwd (Wi-Fi/Ethernet). On Omarchy that split leaves
+# Ethernet unmanaged, so install/uninstall remove those marker-tagged files.
 
 MARKER="Managed by hey-omarchy (ThinkPad X1-13 WWAN)"
 
-NM_WWAN_ONLY_CONF="/etc/NetworkManager/conf.d/10-wwan-only.conf"
-NETWORKD_UNMANAGED_WWAN="/etc/systemd/network/10-wwan-unmanaged.network"
+LEGACY_NM_WWAN_ONLY_CONF="/etc/NetworkManager/conf.d/10-wwan-only.conf"
+LEGACY_NETWORKD_UNMANAGED_WWAN="/etc/systemd/network/10-wwan-unmanaged.network"
 
 DEFAULT_APN="spmode.ne.jp"
 DEFAULT_CON_NAME="docomo"
@@ -50,8 +49,8 @@ What it does (install):
       mobile-broadband-provider-info
   - Foxconn T99W696 (X1 Carbon Gen 14): installs lenovo-wwan-unlock from AUR
     (FCC unlock dispatcher) and enables lenovo-cfgservice.service
-  - Configures NetworkManager to manage only WWAN interfaces
-  - Configures systemd-networkd to ignore WWAN interfaces
+  - Removes the NetworkManager "WWAN only" / systemd-networkd split written by
+    older versions of this script (marker-tagged files only)
   - Enables and starts: ModemManager.service, NetworkManager.service
   - Creates a NetworkManager "gsm" connection (default name: docomo)
   - Optionally brings the connection up once
@@ -72,7 +71,7 @@ Options:
   --no-upgrade       Do not run full system upgrade; use pacman -S --needed
 
 Uninstall options:
-  --keep-services    Do not disable NetworkManager/ModemManager
+  --keep-services    Do not disable ModemManager (NetworkManager is never disabled)
   --keep-connection  Do not delete the NetworkManager connection profile
 
 Notes:
@@ -141,35 +140,20 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   fi
 fi
 
-timestamp() {
-  date +%Y%m%d-%H%M%S
-}
-
 has_marker() {
   local f="$1"
   [[ -f "$f" ]] || return 1
   grep -qF "$MARKER" "$f" 2>/dev/null
 }
 
-backup_if_needed() {
-  local f="$1"
-  [[ -f "$f" ]] || return 0
-  if has_marker "$f"; then
-    return 0
-  fi
-  local bak="${f}.bak.$(timestamp)"
-  $SUDO cp -a "$f" "$bak"
-  echo "Backup: $bak"
-}
-
-install_file() {
-  local mode="$1"
-  local path="$2"
-  local tmp
-  tmp="$(mktemp)"
-  cat >"$tmp"
-  $SUDO install -m "$mode" "$tmp" "$path"
-  rm -f "$tmp"
+remove_legacy_network_split() {
+  local f
+  for f in "$LEGACY_NM_WWAN_ONLY_CONF" "$LEGACY_NETWORKD_UNMANAGED_WWAN"; do
+    if has_marker "$f"; then
+      $SUDO rm -f "$f"
+      echo "Removed legacy config: $f"
+    fi
+  done
 }
 
 run_with_timeout() {
@@ -609,7 +593,7 @@ ensure_services_running() {
   $SUDO systemctl enable --now ModemManager.service 2>/dev/null || $SUDO systemctl start ModemManager.service
   $SUDO systemctl enable --now NetworkManager.service 2>/dev/null || $SUDO systemctl start NetworkManager.service
 
-  # Make sure the new NetworkManager config is picked up.
+  # Make sure NetworkManager picks up config changes.
   $SUDO systemctl reload NetworkManager.service 2>/dev/null || $SUDO systemctl restart NetworkManager.service
 }
 
@@ -672,20 +656,13 @@ if [[ "$action" == "uninstall" ]]; then
     fi
   fi
 
-  if [[ -f "$NM_WWAN_ONLY_CONF" ]] && has_marker "$NM_WWAN_ONLY_CONF"; then
-    $SUDO rm -f "$NM_WWAN_ONLY_CONF"
-    echo "Removed: $NM_WWAN_ONLY_CONF"
-  fi
+  remove_legacy_network_split
+  $SUDO systemctl reload NetworkManager.service 2>/dev/null || true
 
-  if [[ -f "$NETWORKD_UNMANAGED_WWAN" ]] && has_marker "$NETWORKD_UNMANAGED_WWAN"; then
-    $SUDO rm -f "$NETWORKD_UNMANAGED_WWAN"
-    echo "Removed: $NETWORKD_UNMANAGED_WWAN"
-  fi
-
+  # NetworkManager carries every interface on Omarchy; only ModemManager is ours.
   if [[ $keep_services -eq 0 ]]; then
-    $SUDO systemctl disable --now NetworkManager.service 2>/dev/null || true
     $SUDO systemctl disable --now ModemManager.service 2>/dev/null || true
-    echo "Disabled: NetworkManager.service ModemManager.service"
+    echo "Disabled: ModemManager.service"
   fi
 
   echo "Done. Packages were not removed."
@@ -751,29 +728,7 @@ else
   $SUDO pacman -Syu --needed "${pkgs[@]}"
 fi
 
-$SUDO install -d -m 0755 /etc/NetworkManager/conf.d
-$SUDO install -d -m 0755 /etc/systemd/network
-
-backup_if_needed "$NM_WWAN_ONLY_CONF"
-install_file 0644 "$NM_WWAN_ONLY_CONF" <<EOF
-# $MARKER
-# Only manage WWAN devices; leave Wi-Fi/Ethernet to systemd-networkd/iwd.
-[keyfile]
-unmanaged-devices=interface-name:lo;interface-name:wl*;interface-name:en*;interface-name:eth*;interface-name:docker*;interface-name:tailscale*;interface-name:br*;interface-name:veth*;interface-name:virbr*;interface-name:tun*;interface-name:tap*
-EOF
-echo "Installed: $NM_WWAN_ONLY_CONF"
-
-backup_if_needed "$NETWORKD_UNMANAGED_WWAN"
-install_file 0644 "$NETWORKD_UNMANAGED_WWAN" <<EOF
-# $MARKER
-[Match]
-Name=ww*
-
-[Link]
-Unmanaged=yes
-RequiredForOnline=no
-EOF
-echo "Installed: $NETWORKD_UNMANAGED_WWAN"
+remove_legacy_network_split
 
 ensure_services_running
 
