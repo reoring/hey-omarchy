@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Windows 11
+Comment=Start the win11 libvirt VM and open its console
+Exec=sh -c "exec uwsm app -- \\$HOME/.local/bin/win11"
+Icon=windows
+Terminal=false
+Type=Application
+Categories=System;Emulator;

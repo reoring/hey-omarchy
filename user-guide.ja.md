@@ -41,6 +41,7 @@ keyd は必須です。`apply.sh` は既存の `setup-keyd.sh` を使い、`etc/
 | `Super+Shift+O` | Obsidian |
 | `Super+Shift+W` | Typora |
 | `Super+Shift+/` | 1Password |
+| `Super+Shift+V` | Windows 11 VM（libvirt の `win11`。停止中なら起動し、コンソールを開くかフォーカス） |
 
 ## Web アプリ
 

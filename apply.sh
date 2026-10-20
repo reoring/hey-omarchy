@@ -129,7 +129,9 @@ preflight() {
     .local/bin/wwan-latency-switcher \
     .local/bin/waybar-tailscale \
     .local/bin/waybar-tailscale-toggle \
-    .local/bin/waybar-tailscale-peers
+    .local/bin/waybar-tailscale-peers \
+    .local/bin/win11 \
+    .local/share/applications/win11.desktop
   do
     if [[ -f "$SRC_HOME/$f" ]]; then
       log "ok: $f"
@@ -881,6 +883,8 @@ for src in "$SRC_HOME"/.local/bin/*; do
   fi
   install_file "$src" "$HOME/.local/bin/$name" 0755
 done
+
+install_file "$SRC_HOME/.local/share/applications/win11.desktop" "$HOME/.local/share/applications/win11.desktop" 0644
 
 configure_hyprland
 

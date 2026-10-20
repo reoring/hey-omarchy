@@ -16,6 +16,7 @@ bind("SUPER + SHIFT + G", "Signal", 'omarchy launch or focus ^signal$ "uwsm-app 
 bind("SUPER + SHIFT + O", "Obsidian", 'omarchy launch or focus ^obsidian$ "uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"')
 bind("SUPER + SHIFT + W", "Typora", "uwsm-app -- typora --enable-wayland-ime")
 bind("SUPER + SHIFT + SLASH", "Passwords", "uwsm-app -- 1password")
+bind("SUPER + SHIFT + V", "Windows 11 VM", "uwsm-app -- ~/.local/bin/win11")
 bind("SUPER + SHIFT + A", "ChatGPT", { webapp = "https://chatgpt.com" })
 bind("SUPER + SHIFT + ALT + A", "Grok", { webapp = "https://grok.com" })
 bind("SUPER + SHIFT + C", "Calendar", { webapp = "https://app.hey.com/calendar/weeks/" })

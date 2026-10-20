@@ -41,6 +41,7 @@ Tip: Press `Super+I` to open Omarchy's keybinding menu (`omarchy menu keybinding
 | `Super+Shift+O` | Obsidian |
 | `Super+Shift+W` | Typora |
 | `Super+Shift+/` | 1Password |
+| `Super+Shift+V` | Windows 11 VM (libvirt `win11`: starts it if needed, then opens or focuses its console) |
 
 ## Web apps
 

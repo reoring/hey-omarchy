@@ -1,0 +1,21 @@
+#!/bin/bash
+# Start the libvirt "win11" VM if needed, then open (or focus) its console.
+
+set -euo pipefail
+
+URI=qemu:///system
+DOM=win11
+
+fail() {
+  notify-send -u critical "Windows 11" "$1"
+  exit 1
+}
+
+state=$(virsh -c "$URI" domstate "$DOM" 2>&1) || fail "VM not available: $state"
+case "$state" in
+  running) ;;
+  paused) err=$(virsh -c "$URI" resume "$DOM" 2>&1) || fail "Failed to resume VM: $err" ;;
+  *) err=$(virsh -c "$URI" start "$DOM" 2>&1) || fail "Failed to start VM: $err" ;;
+esac
+
+exec omarchy-launch-or-focus "$DOM on QEMU" "virt-manager --connect $URI --show-domain-console $DOM"

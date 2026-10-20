@@ -44,6 +44,7 @@ Omarchy 管理下のソースは変更しません。`apply.sh` は変更前の�
 | `~/.config/omarchy/shell.toml` | `omarchy display text size` が書くマシン単位のシェル設定。`[font] base-size = 12` |
 | `~/.local/bin/` | 操作・入力・ネットワーク・ハードウェア補助コマンド |
 | `~/.config/systemd/user/` | ふた閉じ抑止と自動回転のサービス |
+| `~/.local/share/applications/win11.desktop` | libvirt の `win11` VM を起動するランチャー項目（`~/.local/bin/win11`） |
 
 ロック部品は **Omarchy 4.0.2** を基に、このホストの顔認証拡張を復元したものです。`idle.dpms` で画面オフ時間を設定します。顔認証には既存の信頼済み `/etc/pam.d/omarchy-lock-face`、`/opt/howdy/` 以下の Howdy・アカウント検査、カメラ設定、登録済み顔モデル、`dbus-monitor` が必要です。このバンドルは認証基盤の導入・上書きや生体情報のコピーを行いません。顔認証用PAMがなければ顔認証は無効となり、パスワード・指紋は既存の設定に従います。F2／顔認証メッセージのクリックで再試行でき、パスワード送信・スリープ・画面オフで認証を中断します。ローカルコピーはパッケージ更新で自動更新されないため、Omarchy更新時には差分を確認してください。
 

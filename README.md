@@ -43,6 +43,7 @@ The legacy `waybar-*` executable names remain JSON status producers used by Quic
 | `~/.config/omarchy/shell.toml` | Machine-level shell override, as written by `omarchy display text size`: `[font] base-size = 12` |
 | `~/.local/bin/` | Adjustment, status, input, network, and hardware helpers |
 | `~/.config/systemd/user/` | Lid inhibitor and automatic rotation services |
+| `~/.local/share/applications/win11.desktop` | Launcher entry for the libvirt `win11` VM (`~/.local/bin/win11`) |
 
 The lock plugin is based on Omarchy **4.0.2**, with the host's face-unlock extension restored. Its display idle timeout is configurable as `idle.dpms`. Face scanning requires the existing trusted `/etc/pam.d/omarchy-lock-face` service, Howdy installation/account gate under `/opt/howdy/`, camera configuration, enrolled models, and `dbus-monitor`. This bundle does not install or overwrite that authentication stack or copy biometric data; without the face PAM service, face unlock stays disabled and password/fingerprint handling remains available as configured. F2 or clicking the face hint retries recognition; password input, sleep, and display blanking cancel a scan. Review/rebase this user-owned clone when upgrading Omarchy; package updates do not update local clones automatically.
 
